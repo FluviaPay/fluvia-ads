@@ -4,25 +4,54 @@
   "description": "Successful responses. Hand-written from memory of Meta's response shapes; NOT recorded. Replace with real sandbox recordings.",
   "responses": [
     {
-      "match": { "method": "GET", "path": "/me/permissions" },
+      "match": {
+        "method": "GET",
+        "path": "/me/permissions"
+      },
       "response": {
         "status": 200,
-        "headers": { "x-app-usage": "{\"call_count\":1,\"total_cputime\":1,\"total_time\":1}" },
+        "headers": {
+          "x-app-usage": "{\"call_count\":1,\"total_cputime\":1,\"total_time\":1}"
+        },
         "body": {
           "data": [
-            { "permission": "ads_management", "status": "granted" },
-            { "permission": "ads_read", "status": "granted" },
-            { "permission": "business_management", "status": "granted" },
-            { "permission": "pages_show_list", "status": "granted" },
-            { "permission": "pages_read_engagement", "status": "granted" },
-            { "permission": "pages_manage_ads", "status": "granted" },
-            { "permission": "instagram_basic", "status": "granted" }
+            {
+              "permission": "ads_management",
+              "status": "granted"
+            },
+            {
+              "permission": "ads_read",
+              "status": "granted"
+            },
+            {
+              "permission": "business_management",
+              "status": "granted"
+            },
+            {
+              "permission": "pages_show_list",
+              "status": "granted"
+            },
+            {
+              "permission": "pages_read_engagement",
+              "status": "granted"
+            },
+            {
+              "permission": "pages_manage_ads",
+              "status": "granted"
+            },
+            {
+              "permission": "instagram_basic",
+              "status": "granted"
+            }
           ]
         }
       }
     },
     {
-      "match": { "method": "GET", "path": "/me/accounts" },
+      "match": {
+        "method": "GET",
+        "path": "/me/accounts"
+      },
       "response": {
         "status": 200,
         "headers": {},
@@ -31,14 +60,18 @@
             {
               "id": "100000000000001",
               "name": "Peluquería Luna (fixture)",
-              "tasks": ["ADVERTISE", "ANALYZE", "CREATE_CONTENT", "MANAGE", "MODERATE"]
+              "tasks": ["ADVERTISE", "ANALYZE", "CREATE_CONTENT", "MANAGE", "MODERATE"],
+              "is_published": true
             }
           ]
         }
       }
     },
     {
-      "match": { "method": "GET", "path": "/100000000000001" },
+      "match": {
+        "method": "GET",
+        "path": "/100000000000001"
+      },
       "response": {
         "status": 200,
         "headers": {},
@@ -46,20 +79,32 @@
           "id": "100000000000001",
           "name": "Peluquería Luna (fixture)",
           "is_published": true,
-          "instagram_business_account": { "id": "17841400000000001" }
+          "instagram_business_account": {
+            "id": "17841400000000001",
+            "username": "peluqueria_luna_fixture"
+          }
         }
       }
     },
     {
-      "match": { "method": "GET", "path": "/17841400000000001" },
+      "match": {
+        "method": "GET",
+        "path": "/17841400000000001"
+      },
       "response": {
         "status": 200,
         "headers": {},
-        "body": { "id": "17841400000000001", "username": "peluqueria_luna_fixture" }
+        "body": {
+          "id": "17841400000000001",
+          "username": "peluqueria_luna_fixture"
+        }
       }
     },
     {
-      "match": { "method": "GET", "path": "/act_*" },
+      "match": {
+        "method": "GET",
+        "path": "/act_*"
+      },
       "response": {
         "status": 200,
         "headers": {},
@@ -74,16 +119,95 @@
       }
     },
     {
-      "match": { "method": "GET", "path": "/act_*/campaigns" },
-      "response": { "status": 200, "headers": {}, "body": { "data": [] } }
+      "match": {
+        "method": "GET",
+        "path": "/act_*/campaigns"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "data": []
+        }
+      }
     },
     {
-      "match": { "method": "POST", "path": "/act_*/campaigns" },
-      "response": { "status": 200, "headers": {}, "body": { "id": "120200000000001" } }
+      "match": {
+        "method": "POST",
+        "path": "/act_*/campaigns"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "id": "120200000000001"
+        }
+      }
     },
     {
-      "match": { "method": "POST", "path": "/act_*/adcreatives" },
-      "response": { "status": 200, "headers": {}, "body": { "id": "120200000000002" } }
+      "match": {
+        "method": "POST",
+        "path": "/act_*/adcreatives"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "id": "120200000000002"
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path": "/*/owned_ad_accounts"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "data": []
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "POST",
+        "path": "/*/adaccount"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "id": "act_1000000000000001"
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "POST",
+        "path": "/*/client_pages"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "success": true
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "POST",
+        "path": "/*/assigned_users"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "success": true
+        }
+      }
     }
   ]
 }

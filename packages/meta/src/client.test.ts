@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MOCK_AD_ACCOUNT_ID, MetaApiError, createMetaClient, type MetaEnv } from './index';
+import {
+  MOCK_AD_ACCOUNT_ID,
+  MetaApiError,
+  MetaNetworkError,
+  createMetaClient,
+  type MetaEnv,
+} from './index';
+import { graphError, json, liveClient, scriptedFetch } from './test-utils';
 
 const mock = (scenario?: string): MetaEnv => ({
   META_MODE: 'mock',
@@ -121,5 +128,87 @@ describe('live mode', () => {
       category: 'transient',
       status: 502,
     });
+  });
+});
+
+describe('retries, usage and network errors (live mode, scripted fetch)', () => {
+  it('retries a GET on a transient error, with backoff, then succeeds', async () => {
+    const script = scriptedFetch([graphError(2, 500), graphError(2, 500), json({ data: [] })]);
+    const { client, sleeps } = liveClient(script.fetch);
+    const res = await client.get('/me/accounts');
+    expect(res.status).toBe(200);
+    expect(script.calls).toHaveLength(3);
+    expect(sleeps).toEqual([500, 1000]);
+  });
+
+  it('retries a GET after a network failure', async () => {
+    const script = scriptedFetch([new TypeError('fetch failed'), json({ data: [] })]);
+    const { client } = liveClient(script.fetch);
+    expect((await client.get('/me/accounts')).status).toBe(200);
+    expect(script.calls).toHaveLength(2);
+  });
+
+  it('surfaces a persistent network failure as MetaNetworkError', async () => {
+    const script = scriptedFetch([new TypeError('a'), new TypeError('b'), new TypeError('c')]);
+    const { client } = liveClient(script.fetch);
+    await expect(client.get('/me/accounts')).rejects.toBeInstanceOf(MetaNetworkError);
+    expect(script.calls).toHaveLength(3);
+  });
+
+  it('never retries a POST, even on a transient error or a network failure', async () => {
+    for (const first of [graphError(2, 500), new TypeError('fetch failed')]) {
+      const script = scriptedFetch([first, json({ id: '1' })]);
+      const { client } = liveClient(script.fetch);
+      await expect(client.post('/act_1/campaigns', {})).rejects.toBeDefined();
+      expect(script.calls).toHaveLength(1);
+    }
+  });
+
+  it('does not retry a rate limit and exposes retryAfterMs for the queue layer', async () => {
+    const usage = JSON.stringify({
+      '1': [
+        {
+          type: 'ads_management',
+          call_count: 100,
+          total_cputime: 25,
+          total_time: 25,
+          estimated_time_to_regain_access: 5,
+        },
+      ],
+    });
+    const script = scriptedFetch([
+      json({ error: { message: 'too many calls', code: 80004 } }, 400, {
+        'x-business-use-case-usage': usage,
+      }),
+    ]);
+    const { client } = liveClient(script.fetch);
+    const err = await client.get('/me/accounts').catch((e: unknown) => e as MetaApiError);
+    expect(err).toMatchObject({ category: 'rate_limited', retryAfterMs: 300_000 });
+    expect(script.calls).toHaveLength(1);
+  });
+
+  it('reports usage to onUsage for successful and failed calls, and survives a throwing observer', async () => {
+    const header = {
+      'x-app-usage': JSON.stringify({ call_count: 80, total_cputime: 1, total_time: 1 }),
+    };
+    const script = scriptedFetch([json({ data: [] }, 200, header), graphError(100, 400)]);
+    const seen: { maxPct: number; path: string }[] = [];
+    const { client } = liveClient(script.fetch, {
+      onUsage: (usage, call) => {
+        seen.push({ maxPct: usage.maxPct, path: call.path });
+        throw new Error('observer bug');
+      },
+    });
+    await client.get('/me/accounts');
+    await expect(client.get('/me/permissions')).rejects.toBeInstanceOf(MetaApiError);
+    expect(seen).toEqual([{ maxPct: 80, path: '/me/accounts' }]);
+  });
+
+  it('puts usage on successful results', async () => {
+    const header = {
+      'x-app-usage': JSON.stringify({ call_count: 12, total_cputime: 1, total_time: 1 }),
+    };
+    const { client } = liveClient(scriptedFetch([json({ ok: true }, 200, header)]).fetch);
+    expect((await client.get('/me')).usage.maxPct).toBe(12);
   });
 });
