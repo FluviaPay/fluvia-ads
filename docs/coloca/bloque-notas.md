@@ -29,13 +29,13 @@ Estado: investigación, sin código de producción. Sirve de insumo para el paso
 
 ## 3. Métodos de pago disponibles para Colombia
 
-| Método | Cobro a clientes (payins) | Evidencia |
-| --- | --- | --- |
-| Tarjeta | Sí | 📦 `payment.type = "card"` |
-| PSE | Sí | 📦 `payment.type = "pse"` |
-| Efectivo | Sí | 📦 `payment.type = "cash"`; 🔶 qué redes/proveedores |
+| Método    | Cobro a clientes (payins)                     | Evidencia                                                                                                                                |
+| --------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Tarjeta   | Sí                                            | 📦 `payment.type = "card"`                                                                                                               |
+| PSE       | Sí                                            | 📦 `payment.type = "pse"`                                                                                                                |
+| Efectivo  | Sí                                            | 📦 `payment.type = "cash"`; 🔶 qué redes/proveedores                                                                                     |
 | **Bre-B** | **No como método de pago en la API de pagos** | 📦 solo en los módulos `accounts`/`swap`: depósito (`BrebClient.createDeposit`, llave de un solo uso) y pagos de salida; proveedor Cobre |
-| **Nequi** | **No como método de cobro** | 📦 solo aparece como **banco destino de transferencias de salida** (`SupportedBank`, junto con Daviplata) |
+| **Nequi** | **No como método de cobro**                   | 📦 solo aparece como **banco destino de transferencias de salida** (`SupportedBank`, junto con Daviplata)                                |
 
 Conclusión: según el SDK, el API de pagos soporta **solo tarjeta, PSE y efectivo**. Bre-B existe por otra vía (cuentas/swap, depósito) y Nequi solo como destino de salida.
 
