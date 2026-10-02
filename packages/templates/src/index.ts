@@ -1,1 +1,3 @@
-export const packageName = '@fluvia/templates';
+export * from './categories';
+export * from './schema';
+export * from './templates';

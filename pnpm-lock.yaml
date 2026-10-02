@@ -107,7 +107,11 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
-  packages/templates: {}
+  packages/templates:
+    dependencies:
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
 packages:
 
