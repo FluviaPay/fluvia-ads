@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @fluvia/db db:generate",
     "db:migrate": "pnpm --filter @fluvia/db db:migrate",
-    "deploy": "pnpm --filter @fluvia/api run deploy"
+    "deploy": "pnpm --filter @fluvia/api run deploy",
+    "deploy:production": "pnpm --filter @fluvia/api run deploy:production"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261002.1",

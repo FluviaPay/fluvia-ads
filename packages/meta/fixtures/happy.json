@@ -1,0 +1,89 @@
+{
+  "_source": "synthetic",
+  "scenario": "happy",
+  "description": "Successful responses. Hand-written from memory of Meta's response shapes; NOT recorded. Replace with real sandbox recordings.",
+  "responses": [
+    {
+      "match": { "method": "GET", "path": "/me/permissions" },
+      "response": {
+        "status": 200,
+        "headers": { "x-app-usage": "{\"call_count\":1,\"total_cputime\":1,\"total_time\":1}" },
+        "body": {
+          "data": [
+            { "permission": "ads_management", "status": "granted" },
+            { "permission": "ads_read", "status": "granted" },
+            { "permission": "business_management", "status": "granted" },
+            { "permission": "pages_show_list", "status": "granted" },
+            { "permission": "pages_read_engagement", "status": "granted" },
+            { "permission": "pages_manage_ads", "status": "granted" },
+            { "permission": "instagram_basic", "status": "granted" }
+          ]
+        }
+      }
+    },
+    {
+      "match": { "method": "GET", "path": "/me/accounts" },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "data": [
+            {
+              "id": "100000000000001",
+              "name": "Peluquería Luna (fixture)",
+              "tasks": ["ADVERTISE", "ANALYZE", "CREATE_CONTENT", "MANAGE", "MODERATE"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "match": { "method": "GET", "path": "/100000000000001" },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "id": "100000000000001",
+          "name": "Peluquería Luna (fixture)",
+          "is_published": true,
+          "instagram_business_account": { "id": "17841400000000001" }
+        }
+      }
+    },
+    {
+      "match": { "method": "GET", "path": "/17841400000000001" },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": { "id": "17841400000000001", "username": "peluqueria_luna_fixture" }
+      }
+    },
+    {
+      "match": { "method": "GET", "path": "/act_*" },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "id": "act_1000000000000001",
+          "account_id": "1000000000000001",
+          "name": "FLV_fixture",
+          "account_status": 1,
+          "currency": "COP",
+          "timezone_name": "America/Bogota"
+        }
+      }
+    },
+    {
+      "match": { "method": "GET", "path": "/act_*/campaigns" },
+      "response": { "status": 200, "headers": {}, "body": { "data": [] } }
+    },
+    {
+      "match": { "method": "POST", "path": "/act_*/campaigns" },
+      "response": { "status": 200, "headers": {}, "body": { "id": "120200000000001" } }
+    },
+    {
+      "match": { "method": "POST", "path": "/act_*/adcreatives" },
+      "response": { "status": 200, "headers": {}, "body": { "id": "120200000000002" } }
+    }
+  ]
+}

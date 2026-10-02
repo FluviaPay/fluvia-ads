@@ -2,6 +2,11 @@ import type { Db } from '@fluvia/db';
 
 export type Bindings = {
   APP_VERSION: string;
+  /** development | staging | production. Set per environment in wrangler.toml. */
+  ENVIRONMENT: string;
+  /** mock | sandbox | live (live only when ENVIRONMENT=production). */
+  META_MODE?: string;
+  META_MOCK_SCENARIO?: string;
   DATABASE_URL: string;
   META_APP_ID: string;
   META_APP_SECRET: string;

@@ -11,3 +11,8 @@ KAPSO_WEBHOOK_SECRET=
 ALEGRA_USER=
 ALEGRA_TOKEN=
 ANTHROPIC_API_KEY=
+
+# Meta mode: mock | sandbox | live (live is only accepted when ENVIRONMENT=production)
+META_MODE=
+# Only used in mock mode: happy | permission-denied | rate-limited | token-expired | page-restricted
+META_MOCK_SCENARIO=

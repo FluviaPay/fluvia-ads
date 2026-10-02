@@ -74,11 +74,14 @@ pnpm dev            # wrangler dev + vite
 pnpm test
 pnpm db:generate    # drizzle-kit generate
 pnpm db:migrate
-pnpm run deploy     # wrangler deploy (`pnpm deploy` es un comando propio de pnpm)
+pnpm run deploy     # wrangler deploy --env staging (`pnpm deploy` es un comando propio de pnpm)
+pnpm run deploy:production
 ```
 
 ## Variables de entorno
 DATABASE_URL, META_APP_ID, META_APP_SECRET, META_SYSTEM_USER_TOKEN, META_BUSINESS_ID, META_SANDBOX_AD_ACCOUNT_ID, COLOCA_API_KEY, COLOCA_WEBHOOK_SECRET, KAPSO_API_KEY, KAPSO_WEBHOOK_SECRET, ALEGRA_USER, ALEGRA_TOKEN, ANTHROPIC_API_KEY
+Además (no secretas): ENVIRONMENT (development | staging | production, la fija wrangler.toml), META_MODE (mock | sandbox | live; `live` solo con ENVIRONMENT=production) y META_MOCK_SCENARIO (solo en mock).
+Cada ambiente tiene su propia DATABASE_URL; staging apunta a una rama de Neon. Los secretos se cargan por ambiente con `wrangler secret put <NOMBRE> --env staging|production`.
 
 ## Decisiones que dependen de terceros (no suponer)
 - Qué expone la API de Meta sobre asignación de crédito, vínculo de WhatsApp y límites de cuentas → **Meta**. Si no está disponible, crear tarea humana de un clic.

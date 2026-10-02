@@ -1,3 +1,4 @@
+import { resolveMetaConfig } from '@fluvia/meta';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppEnv } from '../env';
@@ -17,12 +18,27 @@ health.get('/health', async (c) => {
       error: err instanceof Error ? err.message : 'unknown',
     });
   }
+  const dbLatency = Date.now() - start;
+
+  let metaMode: string | null = null;
+  try {
+    metaMode = resolveMetaConfig(c.env).mode;
+  } catch (err) {
+    log('error', 'meta_config_invalid', {
+      request_id: c.get('requestId'),
+      error: err instanceof Error ? err.message : 'unknown',
+    });
+  }
+
+  const ok = dbOk && metaMode !== null;
   return c.json(
     {
-      status: dbOk ? 'ok' : 'degraded',
+      status: ok ? 'ok' : 'degraded',
       version: c.env.APP_VERSION,
-      db: { ok: dbOk, latency_ms: Date.now() - start },
+      environment: c.env.ENVIRONMENT,
+      db: { ok: dbOk, latency_ms: dbLatency },
+      meta: { ok: metaMode !== null, mode: metaMode },
     },
-    dbOk ? 200 : 503,
+    ok ? 200 : 503,
   );
 });

@@ -1,0 +1,23 @@
+{
+  "_source": "synthetic",
+  "scenario": "page-restricted",
+  "description": "Reads work, but creating a creative for the restricted page is blocked by policy (code 368). Models plan B of docs/plan-meta.md §7 (PAGE_RESTRICTED); UNCONFIRMED that Meta returns this. Hand-written; NOT recorded.",
+  "extends": "happy",
+  "responses": [
+    {
+      "match": { "method": "POST", "path": "/act_*/adcreatives" },
+      "response": {
+        "status": 400,
+        "headers": {},
+        "body": {
+          "error": {
+            "message": "(#368) The action attempted has been deemed abusive or is not allowed",
+            "type": "FacebookApiException",
+            "code": 368,
+            "fbtrace_id": "FIXTURE_RESTRICTED_0001"
+          }
+        }
+      }
+    }
+  ]
+}
