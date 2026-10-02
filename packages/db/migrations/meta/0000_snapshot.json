@@ -115,8 +115,12 @@
           "name": "audit_log_client_id_clients_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -247,8 +251,12 @@
           "name": "campaigns_client_id_clients_id_fk",
           "tableFrom": "campaigns",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -256,8 +264,12 @@
           "name": "campaigns_order_id_orders_id_fk",
           "tableFrom": "campaigns",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -346,8 +358,12 @@
           "name": "client_assets_client_id_clients_id_fk",
           "tableFrom": "client_assets",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -574,8 +590,12 @@
           "name": "creatives_client_id_clients_id_fk",
           "tableFrom": "creatives",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -583,8 +603,12 @@
           "name": "creatives_campaign_id_campaigns_id_fk",
           "tableFrom": "creatives",
           "tableTo": "campaigns",
-          "columnsFrom": ["campaign_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "campaign_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -592,8 +616,12 @@
           "name": "creatives_asset_id_client_assets_id_fk",
           "tableFrom": "creatives",
           "tableTo": "client_assets",
-          "columnsFrom": ["asset_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -699,8 +727,12 @@
           "name": "funding_client_id_clients_id_fk",
           "tableFrom": "funding",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -708,8 +740,12 @@
           "name": "funding_order_id_orders_id_fk",
           "tableFrom": "funding",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -840,8 +876,12 @@
           "name": "ledger_client_id_clients_id_fk",
           "tableFrom": "ledger",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -849,8 +889,12 @@
           "name": "ledger_order_id_orders_id_fk",
           "tableFrom": "ledger",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -858,8 +902,12 @@
           "name": "ledger_payment_id_payments_id_fk",
           "tableFrom": "ledger",
           "tableTo": "payments",
-          "columnsFrom": ["payment_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -960,8 +1008,12 @@
           "name": "meta_connections_client_id_clients_id_fk",
           "tableFrom": "meta_connections",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -971,12 +1023,16 @@
         "meta_connections_client_id_unique": {
           "name": "meta_connections_client_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["client_id"]
+          "columns": [
+            "client_id"
+          ]
         },
         "meta_connections_ad_account_id_unique": {
           "name": "meta_connections_ad_account_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["ad_account_id"]
+          "columns": [
+            "ad_account_id"
+          ]
         }
       },
       "policies": {},
@@ -1077,8 +1133,12 @@
           "name": "metrics_daily_client_id_clients_id_fk",
           "tableFrom": "metrics_daily",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1086,8 +1146,12 @@
           "name": "metrics_daily_campaign_id_campaigns_id_fk",
           "tableFrom": "metrics_daily",
           "tableTo": "campaigns",
-          "columnsFrom": ["campaign_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "campaign_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1097,7 +1161,10 @@
         "metrics_daily_campaign_date_uq": {
           "name": "metrics_daily_campaign_date_uq",
           "nullsNotDistinct": false,
-          "columns": ["campaign_id", "date"]
+          "columns": [
+            "campaign_id",
+            "date"
+          ]
         }
       },
       "policies": {},
@@ -1202,8 +1269,12 @@
           "name": "orders_client_id_clients_id_fk",
           "tableFrom": "orders",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1343,8 +1414,12 @@
           "name": "payments_client_id_clients_id_fk",
           "tableFrom": "payments",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1352,8 +1427,12 @@
           "name": "payments_order_id_orders_id_fk",
           "tableFrom": "payments",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1363,7 +1442,9 @@
         "payments_provider_event_id_unique": {
           "name": "payments_provider_event_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["provider_event_id"]
+          "columns": [
+            "provider_event_id"
+          ]
         }
       },
       "policies": {},
@@ -1503,8 +1584,12 @@
           "name": "tasks_client_id_clients_id_fk",
           "tableFrom": "tasks",
           "tableTo": "clients",
-          "columnsFrom": ["client_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1512,8 +1597,12 @@
           "name": "tasks_order_id_orders_id_fk",
           "tableFrom": "tasks",
           "tableTo": "orders",
-          "columnsFrom": ["order_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1529,22 +1618,39 @@
     "public.actor_type": {
       "name": "actor_type",
       "schema": "public",
-      "values": ["ai", "human", "system"]
+      "values": [
+        "ai",
+        "human",
+        "system"
+      ]
     },
     "public.approval_status": {
       "name": "approval_status",
       "schema": "public",
-      "values": ["pending", "approved", "rejected"]
+      "values": [
+        "pending",
+        "approved",
+        "rejected"
+      ]
     },
     "public.asset_type": {
       "name": "asset_type",
       "schema": "public",
-      "values": ["logo", "photo", "video", "invoice", "other"]
+      "values": [
+        "logo",
+        "photo",
+        "video",
+        "invoice",
+        "other"
+      ]
     },
     "public.campaign_objective": {
       "name": "campaign_objective",
       "schema": "public",
-      "values": ["messages", "traffic"]
+      "values": [
+        "messages",
+        "traffic"
+      ]
     },
     "public.campaign_status": {
       "name": "campaign_status",
@@ -1562,57 +1668,110 @@
     "public.client_status": {
       "name": "client_status",
       "schema": "public",
-      "values": ["lead", "pending_verification", "verified", "active", "suspended"]
+      "values": [
+        "lead",
+        "pending_verification",
+        "verified",
+        "active",
+        "suspended"
+      ]
     },
     "public.creative_format": {
       "name": "creative_format",
       "schema": "public",
-      "values": ["square_1_1", "portrait_4_5", "vertical_9_16"]
+      "values": [
+        "square_1_1",
+        "portrait_4_5",
+        "vertical_9_16"
+      ]
     },
     "public.funding_status": {
       "name": "funding_status",
       "schema": "public",
-      "values": ["pending", "allocated", "failed"]
+      "values": [
+        "pending",
+        "allocated",
+        "failed"
+      ]
     },
     "public.ledger_direction": {
       "name": "ledger_direction",
       "schema": "public",
-      "values": ["in", "out"]
+      "values": [
+        "in",
+        "out"
+      ]
     },
     "public.ledger_kind": {
       "name": "ledger_kind",
       "schema": "public",
-      "values": ["pauta", "servicio"]
+      "values": [
+        "pauta",
+        "servicio"
+      ]
     },
     "public.message_destination": {
       "name": "message_destination",
       "schema": "public",
-      "values": ["whatsapp", "instagram_direct", "messenger"]
+      "values": [
+        "whatsapp",
+        "instagram_direct",
+        "messenger"
+      ]
     },
     "public.meta_connection_status": {
       "name": "meta_connection_status",
       "schema": "public",
-      "values": ["pending", "connected", "needs_action", "revoked"]
+      "values": [
+        "pending",
+        "connected",
+        "needs_action",
+        "revoked"
+      ]
     },
     "public.order_status": {
       "name": "order_status",
       "schema": "public",
-      "values": ["draft", "awaiting_payment", "paid", "funded", "active", "completed", "cancelled"]
+      "values": [
+        "draft",
+        "awaiting_payment",
+        "paid",
+        "funded",
+        "active",
+        "completed",
+        "cancelled"
+      ]
     },
     "public.payment_method": {
       "name": "payment_method",
       "schema": "public",
-      "values": ["bre_b", "nequi", "pse", "card"]
+      "values": [
+        "bre_b",
+        "nequi",
+        "pse",
+        "card"
+      ]
     },
     "public.payment_status": {
       "name": "payment_status",
       "schema": "public",
-      "values": ["pending", "confirmed", "failed", "expired", "refunded"]
+      "values": [
+        "pending",
+        "confirmed",
+        "failed",
+        "expired",
+        "refunded"
+      ]
     },
     "public.task_status": {
       "name": "task_status",
       "schema": "public",
-      "values": ["open", "in_progress", "done", "dismissed"]
+      "values": [
+        "open",
+        "in_progress",
+        "done",
+        "dismissed"
+      ]
     }
   },
   "schemas": {},
