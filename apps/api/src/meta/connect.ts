@@ -8,12 +8,19 @@ import {
   getPages,
   type MetaClient,
 } from '@fluvia/meta';
-import { encodeConnectResult, type ConnectReason, type ConnectResult } from '@fluvia/shared';
+import {
+  encodeConnectResult,
+  type ConnectReason,
+  type ConnectResult,
+  type ConnectionReceivedEvent,
+} from '@fluvia/shared';
 import { encryptToken } from '../crypto';
+import type { EventPublisher } from '../events';
 import { log } from '../logger';
 import { STATE_TTL_SECONDS, newNonce, signState, verifyState } from '../oauth-state';
 import type { ConnectConfig } from './config';
 import type { ConnectionStore, RetryLink } from './store';
+import { buildTask } from './task-catalog';
 
 export type ConnectDeps = {
   config: ConnectConfig;
@@ -21,6 +28,8 @@ export type ConnectDeps = {
   /** A Meta client; with a token it calls on behalf of that user (the client's own token). */
   meta: (userToken?: string) => MetaClient;
   now: () => Date;
+  events: EventPublisher;
+  newId: () => string;
   requestId?: string;
 };
 
@@ -209,7 +218,41 @@ export async function handleCallback(
     retry: retry?.link ?? null,
   });
 
+  // Saved and fine: the next step (validate, create the ad account) runs from the queue.
+  if (ok) await publishReceived(deps, clientId);
+
   return ok
     ? { status: 'ok', reasons: [] }
     : { status: 'needs_action', reasons, retryState: retry?.state };
+}
+
+/** Tells the queue to process this client's connection. Never makes the client's page fail. */
+export async function publishReceived(
+  deps: ConnectDeps,
+  clientId: string,
+  acknowledged: ConnectionReceivedEvent['acknowledged'] = [],
+): Promise<void> {
+  try {
+    await deps.events.publish({
+      id: deps.newId(),
+      type: 'meta.connection.received',
+      occurredAt: deps.now().toISOString(),
+      clientId,
+      acknowledged,
+    });
+  } catch (err) {
+    log('error', 'meta_connection_enqueue_failed', {
+      request_id: deps.requestId,
+      client_id: clientId,
+      error: err instanceof Error ? err.name : 'unknown',
+    });
+    try {
+      await deps.store.recordEnqueueFailure({
+        clientId,
+        task: buildTask('ENQUEUE_FAILED', { clientId }),
+      });
+    } catch {
+      // Nothing else to do: the error is already logged with the client id.
+    }
+  }
 }

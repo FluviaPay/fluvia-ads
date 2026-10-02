@@ -42,6 +42,10 @@
             {
               "permission": "instagram_basic",
               "status": "granted"
+            },
+            {
+              "permission": "whatsapp_business_management",
+              "status": "granted"
             }
           ]
         }
@@ -82,7 +86,8 @@
           "instagram_business_account": {
             "id": "17841400000000001",
             "username": "peluqueria_luna_fixture"
-          }
+          },
+          "whatsapp_number": "+573001112233"
         }
       }
     },

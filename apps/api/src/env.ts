@@ -17,6 +17,16 @@ export type Bindings = {
   TOKEN_ENCRYPTION_KEY?: string;
   OAUTH_STATE_SECRET?: string;
   INTERNAL_API_TOKEN?: string;
+  /**
+   * Needed to create the client's ad account in Fluvia's portfolio (live mode only).
+   * Values still to be decided by the team: docs/plan-meta.md §8.1 and §18.
+   */
+  META_SYSTEM_USER_ID?: string;
+  /** Meta's numeric id for America/Bogota (not the IANA name). */
+  META_AD_ACCOUNT_TIMEZONE_ID?: string;
+  META_END_ADVERTISER?: string;
+  META_MEDIA_AGENCY?: string;
+  META_PARTNER?: string;
   DATABASE_URL: string;
   META_APP_ID: string;
   META_APP_SECRET: string;

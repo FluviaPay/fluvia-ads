@@ -86,6 +86,8 @@ export const metaConnections = pgTable('meta_connections', {
   /** Single-use nonce of the signed OAuth state; cleared when the callback consumes it. */
   oauthNonce: text('oauth_nonce'),
   oauthNonceExpiresAt: timestamp('oauth_nonce_expires_at', { withTimezone: true }),
+  /** Set once the page is usable from the ad account, so a re-run does not assign it again. */
+  pageAssignedAt: timestamp('page_assigned_at', { withTimezone: true }),
   ...timestamps(),
 });
 

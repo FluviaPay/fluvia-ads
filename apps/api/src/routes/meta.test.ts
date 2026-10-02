@@ -2,13 +2,15 @@ import { decodeConnectResult } from '@fluvia/shared';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../app';
 import type { Bindings } from '../env';
-import { CLIENT_ID, NOW, connectEnv, memoryStore, mockMeta } from '../test-utils';
+import { CLIENT_ID, NOW, connectEnv, memoryEvents, memoryStore, mockMeta } from '../test-utils';
 
 const AUTH = { authorization: `Bearer ${connectEnv.INTERNAL_API_TOKEN}` };
 
 function setup(env: Bindings = connectEnv) {
   const memory = memoryStore();
+  const events = memoryEvents();
   const app = createApp({
+    events: () => events.publisher,
     getStore: () => memory.store,
     meta: (_env, token) => mockMeta(token),
     now: () => NOW,
@@ -20,7 +22,7 @@ function setup(env: Bindings = connectEnv) {
       headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
     });
-  return { ...memory, request, postLink };
+  return { ...memory, events, request, postLink };
 }
 
 const location = (res: Response) => new URL(res.headers.get('location') ?? '');
@@ -199,5 +201,70 @@ describe('when something unexpected breaks during the callback', () => {
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe('https://app.fluvia.test/connect/result?status=error');
     expect(res.headers.get('location')).not.toContain('secret');
+  });
+});
+
+describe('POST /meta/connections/:clientId/process', () => {
+  const call = (
+    ctx: ReturnType<typeof setup>,
+    clientId: string,
+    body?: string,
+    headers: Record<string, string> = AUTH,
+  ) =>
+    ctx.request(`/meta/connections/${clientId}/process`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      ...(body === undefined ? {} : { body }),
+    });
+
+  it('queues a re-run (202), with no body', async () => {
+    const ctx = setup();
+    const res = await call(ctx, CLIENT_ID);
+    expect(res.status).toBe(202);
+    const { queued, eventId } = (await res.json()) as { queued: boolean; eventId: string };
+    expect(queued).toBe(true);
+    expect(ctx.events.published).toEqual([
+      {
+        id: eventId,
+        type: 'meta.connection.received',
+        occurredAt: NOW.toISOString(),
+        clientId: CLIENT_ID,
+        acknowledged: [],
+      },
+    ]);
+  });
+
+  it('passes along what a person verified by hand', async () => {
+    const ctx = setup();
+    const res = await call(ctx, CLIENT_ID, JSON.stringify({ acknowledged: ['WA_VERIFY_MANUAL'] }));
+    expect(res.status).toBe(202);
+    expect(ctx.events.published[0]).toMatchObject({ acknowledged: ['WA_VERIFY_MANUAL'] });
+  });
+
+  it('refuses to acknowledge anything that can really be checked (400)', async () => {
+    const ctx = setup();
+    for (const code of ['PAGE_RESTRICTED', 'IG_NOT_PROFESSIONAL', 'whatever']) {
+      const res = await call(ctx, CLIENT_ID, JSON.stringify({ acknowledged: [code] }));
+      expect(res.status, code).toBe(400);
+    }
+    expect(ctx.events.published).toEqual([]);
+  });
+
+  it('401 without the internal token, 400 for a bad id or body, 404 for an unknown client', async () => {
+    const ctx = setup();
+    expect((await call(ctx, CLIENT_ID, undefined, {})).status).toBe(401);
+    expect((await call(ctx, CLIENT_ID, undefined, { authorization: 'Bearer nope' })).status).toBe(
+      401,
+    );
+    expect((await call(ctx, 'not-a-uuid')).status).toBe(400);
+    expect((await call(ctx, CLIENT_ID, '{not json')).status).toBe(400);
+    expect((await call(ctx, '11111111-1111-4111-8111-111111111111')).status).toBe(404);
+    expect(ctx.events.published).toEqual([]);
+  });
+
+  it('503 when the queue is down (so the person knows to try again)', async () => {
+    const ctx = setup();
+    ctx.events.state.failNext = true;
+    expect((await call(ctx, CLIENT_ID)).status).toBe(503);
   });
 });

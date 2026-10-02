@@ -20,7 +20,7 @@ export type AssignPageResult = {
   adAccountId: string;
   /** Sandbox: nothing was sent to Meta. */
   simulated?: true;
-  /** Why a human is needed (never contains secrets). */
+  /** Why a human is needed: `category:code`, never Meta's message text. */
   reason?: string;
 };
 
@@ -57,7 +57,7 @@ export async function assignPageToAdAccount(
     });
     parseBody(successSchema, res.body, 'assignPageToAdAccount (request access)');
   } catch (err) {
-    if (isRefusal(err)) return { ...base, status: 'manual_required', reason: err.message };
+    if (isRefusal(err)) return { ...base, status: 'manual_required', reason: refusal(err) };
     throw err;
   }
 
@@ -65,7 +65,7 @@ export async function assignPageToAdAccount(
     const res = await client.post(`/${pageId}/assigned_users`, { user: systemUserId, tasks });
     parseBody(successSchema, res.body, 'assignPageToAdAccount (assign user)');
   } catch (err) {
-    if (isRefusal(err)) return { ...base, status: 'pending_client_approval', reason: err.message };
+    if (isRefusal(err)) return { ...base, status: 'pending_client_approval', reason: refusal(err) };
     throw err;
   }
   return { ...base, status: 'assigned' };
@@ -78,3 +78,5 @@ function isRefusal(err: unknown): err is MetaApiError {
     (err.category === 'permission' || err.category === 'invalid_request')
   );
 }
+
+const refusal = (err: MetaApiError) => `${err.category}:${err.code ?? err.status}`;

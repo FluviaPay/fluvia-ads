@@ -3,6 +3,8 @@ import { clients, metaConnections, tasks, type Db } from '@fluvia/db';
 import { and, eq, gt } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { auditInsert } from '../audit';
+import { insertTaskIfNoOpenSql } from './setup-store';
+import type { TaskDraft } from './task-catalog';
 
 /** A fresh single-use nonce so the client can try again after a non-ok result. */
 export type RetryLink = { nonce: string; expiresAt: Date };
@@ -33,6 +35,8 @@ export type ConnectionStore = {
   consumeNonce(input: { clientId: string; nonce: string; now: Date }): Promise<boolean>;
   /** Applies the outcome and its audit_log (and tasks) rows in ONE transaction. */
   recordOutcome(outcome: ConnectionOutcome): Promise<void>;
+  /** The connection was saved but its processing could not be queued: audit + a task for the team. */
+  recordEnqueueFailure(input: { clientId: string; task: TaskDraft }): Promise<void>;
 };
 
 type Queries = [BatchItem<'pg'>, ...BatchItem<'pg'>[]];
@@ -182,6 +186,17 @@ export function createConnectionStore(db: Db): ConnectionStore {
     },
     async recordOutcome(outcome) {
       await db.batch(outcomeQueries(db, outcome));
+    },
+    async recordEnqueueFailure({ clientId, task }) {
+      await db.batch([
+        auditInsert(db, {
+          actorType: 'system',
+          actorId: 'oauth-callback',
+          action: 'meta.connection.enqueue_failed',
+          clientId,
+        }),
+        db.execute(insertTaskIfNoOpenSql(clientId, task)),
+      ]);
     },
   };
 }

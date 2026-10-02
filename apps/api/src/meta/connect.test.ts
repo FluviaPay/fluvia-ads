@@ -8,6 +8,7 @@ import {
   NOW,
   connectEnv,
   jsonResponse,
+  memoryEvents,
   memoryStore,
   metaFromFetch,
   mockMeta,
@@ -20,14 +21,17 @@ const MOCK_TOKEN = 'MOCK_USER_TOKEN_not_a_real_token';
 
 function setup(overrides: Partial<ConnectDeps> = {}, clock = { now: NOW }) {
   const memory = memoryStore();
+  const events = memoryEvents();
   const deps: ConnectDeps = {
     config: resolveConnectConfig(connectEnv),
     store: memory.store,
     meta: mockMeta,
     now: () => clock.now,
+    events: events.publisher,
+    newId: () => '5b1a2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
     ...overrides,
   };
-  return { ...memory, deps, clock };
+  return { ...memory, deps, clock, events };
 }
 
 async function newState(deps: ConnectDeps) {
@@ -373,6 +377,66 @@ describe('handleCallback (scripted Meta)', () => {
     ).toMatchObject({
       status: 'needs_action',
       reasons: ['NO_PAGE'],
+    });
+  });
+});
+
+describe('handleCallback hands the connection over to the queue', () => {
+  it('publishes meta.connection.received once the connection was saved fine', async () => {
+    const { deps, events } = setup();
+    const state = await newState(deps);
+    expect(await handleCallback(deps, { state, code: 'mock_code' })).toEqual({
+      status: 'ok',
+      reasons: [],
+    });
+    expect(events.published).toEqual([
+      {
+        id: '5b1a2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
+        type: 'meta.connection.received',
+        occurredAt: NOW.toISOString(),
+        clientId: CLIENT_ID,
+        acknowledged: [],
+      },
+    ]);
+  });
+
+  it('publishes nothing when the client has to fix something, cancelled, or it failed', async () => {
+    const cancelled = setup();
+    await handleCallback(cancelled.deps, {
+      state: await newState(cancelled.deps),
+      error: 'access_denied',
+    });
+    const missingCode = setup();
+    await handleCallback(missingCode.deps, { state: await newState(missingCode.deps) });
+    const replay = setup();
+    const state = await newState(replay.deps);
+    await handleCallback(replay.deps, { state, code: 'c' });
+    await handleCallback(replay.deps, { state, code: 'c' });
+
+    expect(cancelled.events.published).toEqual([]);
+    expect(missingCode.events.published).toEqual([]);
+    expect(replay.events.published).toHaveLength(1);
+  });
+
+  it("a queue outage does not break the client's page: the result is still ok and a task is recorded", async () => {
+    const { deps, events, enqueueFailures, outcomes } = setup();
+    events.state.failNext = true;
+    const result = await handleCallback(deps, { state: await newState(deps), code: 'c' });
+    expect(result).toEqual({ status: 'ok', reasons: [] });
+    expect(outcomes[0]).toMatchObject({ kind: 'saved', status: 'pending' });
+    expect(enqueueFailures).toEqual([
+      { clientId: CLIENT_ID, task: expect.objectContaining({ type: 'meta.setup.ENQUEUE_FAILED' }) },
+    ]);
+  });
+
+  it('even if recording that failure also fails, the client still gets ok', async () => {
+    const { deps, events } = setup();
+    events.state.failNext = true;
+    deps.store.recordEnqueueFailure = async () => {
+      throw new Error('database down');
+    };
+    expect(await handleCallback(deps, { state: await newState(deps), code: 'c' })).toMatchObject({
+      status: 'ok',
     });
   });
 });

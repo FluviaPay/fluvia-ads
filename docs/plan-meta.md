@@ -350,14 +350,14 @@ stateDiagram-v2
 
 **Eventos en Queues** (cada módulo publica el siguiente, según CLAUDE.md):
 
-| Evento                      | Cuándo                                            |
-| --------------------------- | ------------------------------------------------- |
-| `meta.connection.requested` | Se generó el enlace de conexión.                  |
-| `meta.connection.validated` | Pasaron las validaciones de la sección 7.         |
-| `meta.adaccount.created`    | La cuenta publicitaria existe y está guardada.    |
-| `meta.assets.assigned`      | Página, Instagram y usuario de sistema asignados. |
-| `meta.connection.ready`     | Conexión `connected`; dispara el cobro (paso 3).  |
-| `meta.connection.failed`    | Alguna etapa falló; crea una fila en `tasks`.     |
+| Evento                      | Cuándo                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Evento                      | Cuándo                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `meta.connection.received`  | El callback guardó la conexión sin problemas, o una persona pidió volver a correr el proceso. Lo consume el Worker.        |
+| `meta.connected`            | Validaciones, cuenta publicitaria, página y prueba de restricciones OK; la conexión pasó a `connected`. Dispara el cobro.  |
+
+Cada evento es un mensaje Zod (`packages/shared/src/events.ts`). Los eventos de las etapas intermedias (`validated`, `adaccount.created`, …) del borrador original no se implementaron: el proceso es un solo consumidor con estado persistido, y cada paso queda en `audit_log`.
 
 **Auditoría** (`audit_log`), un registro por cada: inicio y fin del onboarding, resultado de cada validación, creación de cuenta, cada asignación de activo, cada revocación, cada error `auth` o `limit_reached`.
 
@@ -392,10 +392,10 @@ stateDiagram-v2
 
 1. **2a** Cliente base: versión, HTTP, errores, reintentos y límites, con pruebas unitarias. ✅ Hecho.
 2. **2b** `oauth`: `state` firmado, diálogo y callback contra el entorno de pruebas. ✅ Hecho (ver 16.3).
-3. **2c** Validaciones (solo lectura) con códigos y mensajes al cliente. 🟡 Parcial: permisos, administrador y página publicada ya se validan en el callback; faltan Instagram profesional, WhatsApp y restricciones de la página.
-4. **2d** Creación de cuenta publicitaria idempotente con reconciliación (según lo que permita el sandbox, 15). 🟡 La función existe (`createAdAccount`); falta orquestarla.
-5. **2e** Asignación de página, Instagram y usuario de sistema. 🟡 La función existe (`assignPageToAdAccount`, 🔴 sin confirmar); falta orquestarla.
-6. **2f** Persistencia en `meta_connections`, `audit_log`, `tasks` y eventos. 🟡 El callback ya persiste y audita; falta pasar a `connected` y publicar eventos en Queues.
+3. **2c** Validaciones con códigos y mensajes al cliente. ✅ Hecho (ver 16.4). Las de Instagram, WhatsApp y restricciones de la página dependen de Meta 🔴.
+4. **2d** Creación de cuenta publicitaria idempotente con reconciliación. ✅ Orquestada (16.4). Falta confirmar con Meta el tope de cuentas, el id de zona horaria y los campos de anunciante.
+5. **2e** Asignación de página al usuario de sistema y a la cuenta. 🟡 Orquestada, pero el mecanismo es 🔴 sin confirmar; cae a tarea humana.
+6. **2f** Persistencia, auditoría, tareas y eventos. ✅ Hecho: `connected`, `audit_log`, `tasks` y el evento `meta.connected` en la cola.
 
 ### 16.3 Login for Business tal como está implementado
 
@@ -420,6 +420,31 @@ API -> 302 a web /connect/result?status=ok|needs_action|cancelled|invalid_state|
 - **Modo mock:** `GET /meta/login` salta Facebook y llama al callback con un `code` falso, para recorrer todo el flujo en local. 🔶 Parámetros del diálogo y del endpoint de intercambio sin confirmar (ver comentarios en `packages/meta/src/oauth.ts`).
 - **Variables nuevas:** secretos `TOKEN_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET`, `INTERNAL_API_TOKEN`; vars `META_LOGIN_CONFIG_ID`, `WEB_BASE_URL`, `API_BASE_URL`. Si falta alguna, los endpoints responden 503 `not_configured`.
 - **Callback registrado en la app de Meta:** `{API_BASE_URL}/meta/callback`, idéntico carácter por carácter.
+
+### 16.4 Proceso tras conectar (validar, crear la cuenta, asignar la página)
+
+```text
+callback guarda la conexión (pending) -> publica meta.connection.received -> cola EVENTS_QUEUE
+consumidor (queue):  lock por cliente (Durable Object ClientLock)
+  1. validar con el token del CLIENTE: administrador, permisos, página publicada,
+     Instagram profesional (si el destino incluye instagram_direct),
+     WhatsApp vinculado (si incluye whatsapp)            -> falla: needs_action + tareas
+  2. createAdAccount (usuario de sistema; idempotente por nombre FLV_{clientId}; solo COP)
+     y guardar ad_account_id de inmediato
+  3. assignPageToAdAccount (una sola vez: page_assigned_at)
+  4. probar restricciones de la página (validate_only)   -> falla: needs_action + tarea
+  5. connected + audit_log + cerrar tareas abiertas + publicar meta.connected
+```
+
+- **Orden y restricciones de la página:** la prueba `validate_only` necesita que la cuenta exista y tenga la página, por eso va después de crearla (el costo: si la página está restringida, ya se consumió una cuenta del cupo del portafolio, cuyo tope es 🔴).
+- **Destinos:** salen de `meta_connections.message_destinations`; mientras la captura (paso 4) no los llene, se usan los de las plantillas (`whatsapp` + `instagram_direct`), así que WhatsApp se exige a todos.
+- **Tareas (`tasks`):** una por problema, con `payload.instruction` (instrucción exacta en español para el equipo), `payload.retry` (cómo reanudar) y los ids. Códigos: `PERMISSIONS_MISSING`, `PAGE_NOT_ADMIN`, `PAGE_UNPUBLISHED`, `IG_NOT_PROFESSIONAL`, `WA_NOT_LINKED`, `WA_VERIFY_MANUAL`, `AD_ACCOUNT_CREATION_FAILED`, `AD_ACCOUNT_CONFLICT`, `PAGE_ASSIGN_MANUAL`, `PAGE_ASSIGN_PENDING_CLIENT`, `PAGE_RESTRICTED`, `PAGE_RESTRICTION_UNVERIFIED`, `AUTH_EXPIRED`, `RECONNECT_REQUIRED`, `CONFIG_MISSING`, `SETUP_FAILED_TECHNICAL`, `ENQUEUE_FAILED`. No se duplican mientras haya una abierta del mismo tipo y se cierran solas cuando la conexión queda `connected`. Los textos no afirman rutas de menús de Meta como hecho.
+- **Reanudar:** `POST /meta/connections/{clientId}/process` (token interno). Cuerpo opcional `{"acknowledged": [...]}` para declarar lo que una persona verificó a mano; solo se aceptan `WA_VERIFY_MANUAL`, `PAGE_RESTRICTION_UNVERIFIED`, `PAGE_ASSIGN_MANUAL` y `PAGE_ASSIGN_PENDING_CLIENT` (lo que la API no puede comprobar). Todo lo demás debe pasar de verdad. Cada reconocimiento queda en `audit_log`.
+- **Reintentos:** límite de uso de Meta -> se reprograma en la cola con lo que Meta pidió (entre 30 s y 15 min); errores transitorios y de red -> backoff de 30 s a 15 min, hasta 6 intentos; después, tarea técnica. `auth`/`permission`/`invalid_request`/`policy` no se reintentan. Un token del **cliente** rechazado pide reconectar (`AUTH_EXPIRED`); uno del **usuario de sistema** rechazado es un fallo técnico nuestro.
+- **Idempotencia:** el lock por cliente evita dos cuentas por mensajes duplicados; `meta.connected` es de al menos una entrega y lleva `idempotencyKey = meta.connected:{clientId}:{adAccountId}` para que el cobro (paso 3) la deduplique. Volver a correr un cliente ya `connected` solo republica el evento.
+- **Configuración que falta decidir (live):** `META_SYSTEM_USER_ID`, `META_AD_ACCOUNT_TIMEZONE_ID`, `META_END_ADVERTISER`, `META_MEDIA_AGENCY`, `META_PARTNER` (y `META_BUSINESS_ID`). Si faltan, el proceso crea `CONFIG_MISSING` y no inventa valores. En mock y sandbox se usan marcadores falsos y nunca se crea nada real.
+- **Sandbox:** no crea cuentas ni toca páginas reales: `createAdAccount` devuelve la cuenta sandbox y la asignación y la prueba de restricciones se simulan.
+- **Nada de esto se pudo confirmar contra la documentación de Meta** (bloqueada al escribirlo): el campo del número de WhatsApp de la página, `validate_only` y el efecto de repetir la asignación son 🔴/🔶 y están marcados en el código.
 
 ## 17. Lista consolidada de puntos sin confirmar
 

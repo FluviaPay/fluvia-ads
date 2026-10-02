@@ -78,9 +78,36 @@ describe('against the recorded (mock) responses', () => {
   });
 
   it('checkPagePermissions needs the WhatsApp permission only when asked', async () => {
-    const check = await checkPagePermissions(mockClient(), '100000000000001', { whatsapp: true });
-    expect(check.missingPermissions).toEqual(['whatsapp_business_management']);
-    expect(check.failures.map((f) => f.code)).toEqual(['PERMISSIONS_MISSING']);
+    const without = () =>
+      scriptedFetch([
+        json({
+          data: [
+            'ads_management',
+            'ads_read',
+            'business_management',
+            'pages_show_list',
+            'pages_read_engagement',
+            'pages_manage_ads',
+            'instagram_basic',
+          ].map((permission) => ({ permission, status: 'granted' })),
+        }),
+        json({ data: [{ id: '100000000000001', name: 'P', tasks: ['MANAGE', 'ADVERTISE'] }] }),
+      ]);
+    const asked = await checkPagePermissions(
+      liveClient(without().fetch).client,
+      '100000000000001',
+      {
+        whatsapp: true,
+      },
+    );
+    expect(asked.missingPermissions).toEqual(['whatsapp_business_management']);
+    expect(asked.failures.map((f) => f.code)).toEqual(['PERMISSIONS_MISSING']);
+
+    const notAsked = await checkPagePermissions(
+      liveClient(without().fetch).client,
+      '100000000000001',
+    );
+    expect(notAsked.ok).toBe(true);
   });
 
   it('getAdAccount', async () => {

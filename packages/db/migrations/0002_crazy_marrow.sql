@@ -1,0 +1,1 @@
+ALTER TABLE "meta_connections" ADD COLUMN "page_assigned_at" timestamp with time zone;

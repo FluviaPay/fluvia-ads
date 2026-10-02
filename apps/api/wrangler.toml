@@ -16,6 +16,10 @@ compatibility_flags = ["nodejs_compat"]
 # TOKEN_ENCRYPTION_KEY (32 random bytes, base64), OAUTH_STATE_SECRET and INTERNAL_API_TOKEN
 # (long random strings). Generate each with: openssl rand -base64 32
 # Each environment gets its own DATABASE_URL: staging points at a Neon *branch*.
+# Setting up a client's ad account needs META_BUSINESS_ID (a secret/var), META_SYSTEM_USER_ID,
+# META_AD_ACCOUNT_TIMEZONE_ID (Meta's numeric id for America/Bogota), META_END_ADVERTISER,
+# META_MEDIA_AGENCY and META_PARTNER. Not decided yet (docs/plan-meta.md §8.1, §18): while
+# empty, live mode creates a CONFIG_MISSING task instead of inventing values.
 # Locally: .dev.vars (development) and .dev.vars.staging (`wrangler dev --env staging`).
 #
 # META_MODE: mock | sandbox | live. `live` is rejected unless ENVIRONMENT=production.
@@ -29,10 +33,23 @@ WEB_BASE_URL = "http://localhost:5173"
 API_BASE_URL = "http://localhost:8787"
 # Facebook Login for Business configuration id; only needed outside mock mode.
 META_LOGIN_CONFIG_ID = ""
+META_SYSTEM_USER_ID = ""
+META_AD_ACCOUNT_TIMEZONE_ID = ""
+META_END_ADVERTISER = ""
+META_MEDIA_AGENCY = ""
+META_PARTNER = ""
 
 [[queues.producers]]
 binding = "EVENTS_QUEUE"
 queue = "fluvia-events-dev"
+
+[[queues.consumers]]
+queue = "fluvia-events-dev"
+# One client's setup per message: it is long, and each client is processed under its own lock.
+max_batch_size = 1
+# Retries are driven by the consumer (message.retry with a delay) and a task is created on
+# the last attempt, so the queue must allow at least as many as the consumer uses.
+max_retries = 6
 
 [[r2_buckets]]
 binding = "ASSETS"
@@ -60,10 +77,23 @@ META_MODE = "mock"
 WEB_BASE_URL = ""
 API_BASE_URL = ""
 META_LOGIN_CONFIG_ID = ""
+META_SYSTEM_USER_ID = ""
+META_AD_ACCOUNT_TIMEZONE_ID = ""
+META_END_ADVERTISER = ""
+META_MEDIA_AGENCY = ""
+META_PARTNER = ""
 
 [[env.staging.queues.producers]]
 binding = "EVENTS_QUEUE"
 queue = "fluvia-events-staging"
+
+[[env.staging.queues.consumers]]
+queue = "fluvia-events-staging"
+# One client's setup per message: it is long, and each client is processed under its own lock.
+max_batch_size = 1
+# Retries are driven by the consumer (message.retry with a delay) and a task is created on
+# the last attempt, so the queue must allow at least as many as the consumer uses.
+max_retries = 6
 
 [[env.staging.r2_buckets]]
 binding = "ASSETS"
@@ -91,10 +121,23 @@ META_MODE = "mock"
 WEB_BASE_URL = ""
 API_BASE_URL = ""
 META_LOGIN_CONFIG_ID = ""
+META_SYSTEM_USER_ID = ""
+META_AD_ACCOUNT_TIMEZONE_ID = ""
+META_END_ADVERTISER = ""
+META_MEDIA_AGENCY = ""
+META_PARTNER = ""
 
 [[env.production.queues.producers]]
 binding = "EVENTS_QUEUE"
 queue = "fluvia-events"
+
+[[env.production.queues.consumers]]
+queue = "fluvia-events"
+# One client's setup per message: it is long, and each client is processed under its own lock.
+max_batch_size = 1
+# Retries are driven by the consumer (message.retry with a delay) and a task is created on
+# the last attempt, so the queue must allow at least as many as the consumer uses.
+max_retries = 6
 
 [[env.production.r2_buckets]]
 binding = "ASSETS"

@@ -107,3 +107,9 @@ it('stores the encrypted token and the single-use OAuth nonce on meta_connection
     expect(column?.notNull, name).toBe(false);
   }
 });
+
+it('tracks when the page was assigned to the ad account (nullable)', () => {
+  const column = col(s.metaConnections, 'page_assigned_at');
+  expect(column).toBeDefined();
+  expect(column?.notNull).toBe(false);
+});
