@@ -1,1 +1,2 @@
-export const packageName = '@fluvia/db';
+export * from './client';
+export * from './schema';
