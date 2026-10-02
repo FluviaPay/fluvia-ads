@@ -10,3 +10,4 @@ export { createMockTransport, fixtureSchema, loadFixture } from './transports/mo
 export * from './operations';
 export * from './retry';
 export * from './usage';
+export * from './oauth';

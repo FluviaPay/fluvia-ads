@@ -208,6 +208,21 @@
           "success": true
         }
       }
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path": "/oauth/access_token"
+      },
+      "response": {
+        "status": 200,
+        "headers": {},
+        "body": {
+          "access_token": "MOCK_USER_TOKEN_not_a_real_token",
+          "token_type": "bearer",
+          "expires_in": 5184000
+        }
+      }
     }
   ]
 }

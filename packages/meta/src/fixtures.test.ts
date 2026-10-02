@@ -27,11 +27,11 @@ describe('fixtures', () => {
     }
   });
 
-  it('contains no secrets (tokens, access_token, bearer)', () => {
+  it('contains no real-looking secrets: only obviously fake MOCK_ tokens', () => {
     const text = JSON.stringify(fixtureFiles);
     expect(text).not.toMatch(/EAA[A-Za-z0-9]{20,}/);
-    expect(text.toLowerCase()).not.toContain('access_token');
-    expect(text.toLowerCase()).not.toContain('bearer');
+    expect(text).not.toMatch(/"access_token":"(?!MOCK_)/);
+    expect(text.toLowerCase()).not.toContain('bearer ');
   });
 
   it('covers the four required error scenarios', () => {

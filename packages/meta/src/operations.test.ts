@@ -72,11 +72,9 @@ describe('against the recorded (mock) responses', () => {
   });
 
   it('checkPagePermissions passes with everything granted', async () => {
-    expect(await checkPagePermissions(mockClient(), '100000000000001')).toEqual({
-      ok: true,
-      failures: [],
-      missingPermissions: [],
-    });
+    const check = await checkPagePermissions(mockClient(), '100000000000001');
+    expect(check).toMatchObject({ ok: true, failures: [], missingPermissions: [] });
+    expect(check.grantedPermissions).toContain('ads_management');
   });
 
   it('checkPagePermissions needs the WhatsApp permission only when asked', async () => {

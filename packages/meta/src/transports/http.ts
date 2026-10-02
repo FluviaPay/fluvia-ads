@@ -10,11 +10,12 @@ export function createHttpTransport({
   baseUrl = GRAPH_BASE_URL,
   timeoutMs = 10_000,
 }: HttpOptions): MetaTransport {
-  return async ({ method, path, query, body }) => {
+  return async ({ method, path, query, body, auth }) => {
     const url = new URL(`${baseUrl}/${META_GRAPH_VERSION}${path}`);
     for (const [key, value] of Object.entries(query ?? {})) url.searchParams.set(key, value);
 
-    const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+    const headers: Record<string, string> =
+      auth === 'none' ? {} : { authorization: `Bearer ${token}` };
     const init: RequestInit = { method, headers, signal: AbortSignal.timeout(timeoutMs) };
     if (body !== undefined) {
       headers['content-type'] = 'application/json';

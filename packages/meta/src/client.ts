@@ -20,6 +20,8 @@ const SAFE_PATH = /^\/[A-Za-z0-9_\-./]+$/;
 
 export type MetaResult = MetaResponse & { usage: MetaUsage };
 
+export type RequestOptions = { auth?: 'none' };
+
 export type MetaClientOptions = {
   fetch?: typeof fetch;
   /** Overrides for the in-request retry policy (reads only). */
@@ -27,14 +29,24 @@ export type MetaClientOptions = {
   sleep?: RetryDeps['sleep'];
   random?: RetryDeps['random'];
   timeoutMs?: number;
+  /**
+   * Bearer token to use instead of META_SYSTEM_USER_TOKEN, e.g. a client's own user token
+   * obtained through Login for Business. Ignored in mock mode.
+   */
+  token?: string;
   /** Called for every response that carries usage headers (success or error). Must not throw. */
   onUsage?: (usage: MetaUsage, call: { method: string; path: string }) => void;
 };
 
 export type MetaClient = {
   mode: MetaConfig['mode'];
-  get(path: string, query?: Record<string, string>): Promise<MetaResult>;
-  post(path: string, body?: unknown, query?: Record<string, string>): Promise<MetaResult>;
+  get(path: string, query?: Record<string, string>, options?: RequestOptions): Promise<MetaResult>;
+  post(
+    path: string,
+    body?: unknown,
+    query?: Record<string, string>,
+    options?: RequestOptions,
+  ): Promise<MetaResult>;
   /** Ad account to use for campaign calls: always the sandbox one in sandbox mode. */
   resolveAdAccountId(requested?: string): string;
 };
@@ -52,9 +64,9 @@ function buildTransport(config: MetaConfig, options: MetaClientOptions): MetaTra
     case 'mock':
       return createMockTransport(config.scenario);
     case 'sandbox':
-      return withSandbox(http(config.token), config.sandboxAdAccountId);
+      return withSandbox(http(options.token ?? config.token), config.sandboxAdAccountId);
     case 'live':
-      return http(config.token);
+      return http(options.token ?? config.token);
   }
 }
 
@@ -101,8 +113,9 @@ export function createMetaClient(env: MetaEnv, options: MetaClientOptions = {}):
 
   return {
     mode: config.mode,
-    get: (path, query) => send({ method: 'GET', path, query }),
-    post: (path, body, query) => send({ method: 'POST', path, body, query }),
+    get: (path, query, opts) => send({ method: 'GET', path, query, auth: opts?.auth }),
+    post: (path, body, query, opts) =>
+      send({ method: 'POST', path, body, query, auth: opts?.auth }),
     resolveAdAccountId(requested) {
       if (config.mode === 'sandbox') return `act_${config.sandboxAdAccountId}`;
       if (requested) return withPrefix(requested);

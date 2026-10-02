@@ -57,9 +57,15 @@ Variables ya definidas: `META_APP_ID`, `META_APP_SECRET`, `META_SYSTEM_USER_TOKE
 
 ### 3.3 Qué se guarda del cliente
 
-Diseño propio: **no se persiste el token de usuario del cliente.** Se usa durante el callback para validar y compartir activos, y se descarta. Después todo corre con el token del usuario de sistema de Fluvia. Se guarda en `meta_connections` solo: `page_id`, `ig_id`, `ad_account_id`, destinos de mensajes, `pixel_id`, `permissions` (los permisos concedidos) y `status`. Esto reduce el impacto de una filtración y simplifica la cláusula de datos (Ley 1581, pendiente del abogado).
+**Decisión vigente (cambió respecto al borrador original): el token de usuario del cliente SÍ se guarda, cifrado.** El borrador proponía descartarlo tras el onboarding; el equipo decidió conservarlo cifrado. Detalles:
 
-🔴 Esto asume que, tras el onboarding, el usuario de sistema de Fluvia queda con acceso a la página y a Instagram del cliente (sección 9). Si Meta no lo permite así, habrá que persistir el token del cliente cifrado, y eso cambia este punto.
+- Se guarda en `meta_connections.access_token_encrypted` con AES-256-GCM (`v1.<iv>.<datos>`, IV aleatorio por registro). El `client_id` va como dato autenticado (AAD), así que un cifrado copiado a otra fila no se descifra. La llave es el secreto `TOKEN_ENCRYPTION_KEY` (32 bytes en base64). El prefijo `v1` deja espacio para rotación de llaves (todavía no implementada).
+- También se guarda `token_expires_at` con el vencimiento que reporte Meta. 🔶 No está confirmado si Login for Business entrega un token largo o si hace falta un segundo intercambio.
+- **Hoy nada lee ese token** salvo el propio callback. Si la fase 2e logra que el usuario de sistema de Fluvia opere con la página del cliente (sección 9), conviene volver a la idea original y dejar de guardarlo: menos superficie ante una filtración y cláusula de datos más simple (Ley 1581, pendiente del abogado).
+- Se guarda además en `meta_connections`: `page_id`, `ig_id`, `ad_account_id`, destinos de mensajes, `pixel_id`, `permissions` (los concedidos) y `status`.
+- Los tokens nunca van a logs, a `audit_log`, a `tasks` ni a las URLs.
+
+🔴 Sigue en pie la duda de la sección 9: si el usuario de sistema de Fluvia puede operar con la página y el Instagram del cliente tras el onboarding.
 
 ## 4. Permisos
 
@@ -384,12 +390,36 @@ stateDiagram-v2
 
 ### 16.2 Fases del paso 2 (pequeñas y verificables)
 
-1. **2a** Cliente base: versión, HTTP, errores, reintentos y límites, con pruebas unitarias.
-2. **2b** `oauth`: `state` firmado, diálogo y callback contra el entorno de pruebas.
-3. **2c** Validaciones (solo lectura) con códigos y mensajes al cliente.
-4. **2d** Creación de cuenta publicitaria idempotente con reconciliación (según lo que permita el sandbox, 15).
-5. **2e** Asignación de página, Instagram y usuario de sistema.
-6. **2f** Persistencia en `meta_connections`, `audit_log`, `tasks` y eventos.
+1. **2a** Cliente base: versión, HTTP, errores, reintentos y límites, con pruebas unitarias. ✅ Hecho.
+2. **2b** `oauth`: `state` firmado, diálogo y callback contra el entorno de pruebas. ✅ Hecho (ver 16.3).
+3. **2c** Validaciones (solo lectura) con códigos y mensajes al cliente. 🟡 Parcial: permisos, administrador y página publicada ya se validan en el callback; faltan Instagram profesional, WhatsApp y restricciones de la página.
+4. **2d** Creación de cuenta publicitaria idempotente con reconciliación (según lo que permita el sandbox, 15). 🟡 La función existe (`createAdAccount`); falta orquestarla.
+5. **2e** Asignación de página, Instagram y usuario de sistema. 🟡 La función existe (`assignPageToAdAccount`, 🔴 sin confirmar); falta orquestarla.
+6. **2f** Persistencia en `meta_connections`, `audit_log`, `tasks` y eventos. 🟡 El callback ya persiste y audita; falta pasar a `connected` y publicar eventos en Queues.
+
+### 16.3 Login for Business tal como está implementado
+
+```text
+Backend de Fluvia --POST /meta/connections/link (Bearer INTERNAL_API_TOKEN, {clientId})--> API
+API: guarda un nonce de un solo uso en meta_connections y devuelve
+     {url: WEB_BASE_URL/connect?state=<firmado>, expiresAt}   (30 min)
+Cliente abre la URL -> web /connect -> botón -> API GET /meta/login?state=
+API: verifica firma y vencimiento -> redirige a Facebook (en mock, directo al callback)
+Facebook -> API GET /meta/callback?code=&state=
+API: verifica el state y CONSUME el nonce (un UPDATE atómico) -> intercambia el code por token
+     -> lee páginas/permisos con el token del cliente -> cifra y guarda -> audit_log (+ tasks)
+API -> 302 a web /connect/result?status=ok|needs_action|cancelled|invalid_state|error
+```
+
+- **Quién genera enlaces:** solo el backend de Fluvia, con un secreto compartido (`INTERNAL_API_TOKEN`). No hay autenticación de usuarios todavía; sin ese secreto, cualquiera podría conectar **su** página a la cuenta de otro cliente. El callback es público, pero solo funciona con un `state` firmado y de un solo uso.
+- **Reintento sin pedir otro enlace:** cuando el resultado no es `ok` (faltan ajustes, cancelado, error), el callback emite un `state` nuevo de un solo uso y lo pasa a la web en `retry=`, para el botón «Volver a conectar». Un enlace inválido o vencido no ofrece reintento: hay que pedir uno nuevo.
+- **Resultado `ok`** deja la conexión en `pending` (no `connected`): `connected` llega cuando existan la cuenta publicitaria y la asignación de activos (2d a 2f).
+- **`needs_action`** guarda lo que se pudo y crea una fila en `tasks`. Si el cliente autoriza **más de una página** (`MULTIPLE_PAGES`) o ninguna (`NO_PAGE`), decide una persona. 🔴 No se sabe si Login for Business limita las páginas a las que el cliente elige en el diálogo.
+- **`cancelled`** (el cliente rechazó) se audita pero no crea tarea: es decisión del cliente.
+- **Qué viaja en las URLs:** solo códigos de resultado y el `state` de reintento; nunca tokens, ni nombres o ids de páginas.
+- **Modo mock:** `GET /meta/login` salta Facebook y llama al callback con un `code` falso, para recorrer todo el flujo en local. 🔶 Parámetros del diálogo y del endpoint de intercambio sin confirmar (ver comentarios en `packages/meta/src/oauth.ts`).
+- **Variables nuevas:** secretos `TOKEN_ENCRYPTION_KEY`, `OAUTH_STATE_SECRET`, `INTERNAL_API_TOKEN`; vars `META_LOGIN_CONFIG_ID`, `WEB_BASE_URL`, `API_BASE_URL`. Si falta alguna, los endpoints responden 503 `not_configured`.
+- **Callback registrado en la app de Meta:** `{API_BASE_URL}/meta/callback`, idéntico carácter por carácter.
 
 ## 17. Lista consolidada de puntos sin confirmar
 

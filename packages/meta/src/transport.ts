@@ -4,6 +4,8 @@ export type MetaRequest = {
   path: string;
   query?: Record<string, string> | undefined;
   body?: unknown;
+  /** `none` skips the Authorization header (OAuth code exchange uses app credentials). */
+  auth?: 'none' | undefined;
 };
 
 export type MetaResponse = {

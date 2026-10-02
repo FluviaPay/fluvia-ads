@@ -1,1 +1,1 @@
-export const packageName = '@fluvia/shared';
+export * from './connect';

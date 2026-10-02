@@ -21,7 +21,13 @@ type Step =
 
 /** A fetch that replays a script of responses (or failures) and records every call. */
 export function scriptedFetch(script: Step[]) {
-  const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
+  const calls: {
+    method: string;
+    path: string;
+    query: URLSearchParams;
+    body: unknown;
+    headers: Record<string, string>;
+  }[] = [];
   const fetchFn = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input));
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
@@ -30,6 +36,7 @@ export function scriptedFetch(script: Step[]) {
       path: url.pathname.replace(/^\/v[\d.]+/, ''),
       query: url.searchParams,
       body,
+      headers: (init?.headers ?? {}) as Record<string, string>,
     };
     calls.push(call);
     const step = script.shift();

@@ -80,6 +80,12 @@ export const metaConnections = pgTable('meta_connections', {
   pixelId: text('pixel_id'),
   permissions: jsonb('permissions').$type<string[]>().notNull().default([]),
   status: metaConnectionStatus('status').notNull().default('pending'),
+  /** Client's Meta user token, AES-256-GCM encrypted by the API (`v1.<iv>.<ciphertext>`). Never plaintext. */
+  accessTokenEncrypted: text('access_token_encrypted'),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+  /** Single-use nonce of the signed OAuth state; cleared when the callback consumes it. */
+  oauthNonce: text('oauth_nonce'),
+  oauthNonceExpiresAt: timestamp('oauth_nonce_expires_at', { withTimezone: true }),
   ...timestamps(),
 });
 

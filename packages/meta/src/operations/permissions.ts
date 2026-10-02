@@ -31,11 +31,20 @@ export type PagePermissionCheck = {
   /** All failures at once, so the client hears about every problem in a single answer. */
   failures: PageCheckFailure[];
   missingPermissions: string[];
+  grantedPermissions: string[];
 };
 
 const permissionsSchema = z.object({
   data: z.array(z.object({ permission: z.string(), status: z.string() })),
 });
+
+/** 🔶 Permissions the user actually granted (they can accept only some). */
+export async function getGrantedPermissions(client: MetaClient): Promise<string[]> {
+  const res = await client.get('/me/permissions');
+  return parseBody(permissionsSchema, res.body, 'getGrantedPermissions')
+    .data.filter((p) => p.status === 'granted')
+    .map((p) => p.permission);
+}
 
 export async function checkPagePermissions(
   client: MetaClient,
@@ -53,15 +62,11 @@ export async function checkPagePermissions(
   ];
   const requiredTasks = options.requiredTasks ?? REQUIRED_PAGE_TASKS;
 
-  const [permissionsRes, pages] = await Promise.all([
-    client.get('/me/permissions'),
+  const [grantedPermissions, pages] = await Promise.all([
+    getGrantedPermissions(client),
     getPages(client),
   ]);
-  const granted = new Set(
-    parseBody(permissionsSchema, permissionsRes.body, 'checkPagePermissions')
-      .data.filter((p) => p.status === 'granted')
-      .map((p) => p.permission),
-  );
+  const granted = new Set(grantedPermissions);
 
   const failures: PageCheckFailure[] = [];
   const missingPermissions = requiredPermissions.filter((p) => !granted.has(p));
@@ -88,5 +93,5 @@ export async function checkPagePermissions(
     }
   }
 
-  return { ok: failures.length === 0, failures, missingPermissions };
+  return { ok: failures.length === 0, failures, missingPermissions, grantedPermissions };
 }

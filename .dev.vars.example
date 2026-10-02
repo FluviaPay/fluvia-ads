@@ -16,3 +16,12 @@ ANTHROPIC_API_KEY=
 META_MODE=
 # Only used in mock mode: happy | permission-denied | rate-limited | token-expired | page-restricted
 META_MOCK_SCENARIO=
+
+# Encryption of client tokens at rest and signing of the OAuth state (generate each with
+# `openssl rand -base64 32`; TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes).
+TOKEN_ENCRYPTION_KEY=
+OAUTH_STATE_SECRET=
+# Shared secret for Fluvia's own backend to request connection links (Authorization: Bearer).
+INTERNAL_API_TOKEN=
+# Facebook Login for Business configuration id (only needed when META_MODE is not mock).
+META_LOGIN_CONFIG_ID=
