@@ -81,3 +81,35 @@ it('keeps kpi_agreed as jsonb and distinguishes ledger kinds', () => {
 it('makes payment webhooks idempotent via a unique provider event id', () => {
   expect(col(s.payments, 'provider_event_id')?.isUnique).toBe(true);
 });
+
+it('stores the encrypted token and the single-use OAuth nonce on meta_connections, all nullable', () => {
+  for (const name of [
+    'access_token_encrypted',
+    'token_expires_at',
+    'oauth_nonce',
+    'oauth_nonce_expires_at',
+  ]) {
+    const column = col(s.metaConnections, name);
+    expect(column, name).toBeDefined();
+    expect(column?.notNull, name).toBe(false);
+  }
+});
+
+it('stores the encrypted token and the single-use OAuth nonce on meta_connections, all nullable', () => {
+  for (const name of [
+    'access_token_encrypted',
+    'token_expires_at',
+    'oauth_nonce',
+    'oauth_nonce_expires_at',
+  ]) {
+    const column = col(s.metaConnections, name);
+    expect(column, name).toBeDefined();
+    expect(column?.notNull, name).toBe(false);
+  }
+});
+
+it('tracks when the page was assigned to the ad account (nullable)', () => {
+  const column = col(s.metaConnections, 'page_assigned_at');
+  expect(column).toBeDefined();
+  expect(column?.notNull).toBe(false);
+});

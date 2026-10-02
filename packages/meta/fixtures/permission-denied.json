@@ -1,0 +1,18 @@
+{
+  "_source": "synthetic",
+  "scenario": "permission-denied",
+  "description": "Every call fails with a permissions error (code 200). Hand-written; NOT recorded.",
+  "responses": [],
+  "fallback": {
+    "status": 403,
+    "headers": {},
+    "body": {
+      "error": {
+        "message": "(#200) Requires pages_manage_ads permission to manage the object",
+        "type": "OAuthException",
+        "code": 200,
+        "fbtrace_id": "FIXTURE_PERMISSION_0001"
+      }
+    }
+  }
+}

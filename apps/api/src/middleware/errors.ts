@@ -1,9 +1,11 @@
 import type { ErrorHandler, NotFoundHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { MetaConfigError } from '@fluvia/meta';
 import { ZodError } from 'zod';
 import type { AppEnv } from '../env';
 import { log } from '../logger';
+import { NotConfiguredError } from '../meta/config';
 
 const CODES: Record<number, string> = {
   400: 'bad_request',
@@ -23,6 +25,10 @@ export const onError: ErrorHandler<AppEnv> = (err, c) => {
 
   if (err instanceof ZodError) {
     return c.json(errorBody('validation_error', 'Invalid request', requestId, err.issues), 400);
+  }
+  if (err instanceof NotConfiguredError || err instanceof MetaConfigError) {
+    log('error', 'not_configured', { request_id: requestId, error: err.message });
+    return c.json(errorBody('not_configured', 'This feature is not configured', requestId), 503);
   }
   if (err instanceof HTTPException) {
     const code = CODES[err.status] ?? 'http_error';

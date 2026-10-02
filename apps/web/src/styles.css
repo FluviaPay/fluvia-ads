@@ -1,0 +1,220 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #14181f;
+  --muted: #4b5563;
+  --accent: #1d4ed8;
+  --accent-text: #ffffff;
+  --ok-bg: #ecfdf3;
+  --ok-text: #14532d;
+  --warn-bg: #fff7e6;
+  --warn-text: #7a4a00;
+  --err-bg: #fef2f2;
+  --err-text: #7f1d1d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1218;
+    --card: #181d27;
+    --text: #eef1f6;
+    --muted: #aab3c2;
+    --accent: #6ea0ff;
+    --accent-text: #0b1020;
+    --ok-bg: #11291b;
+    --ok-text: #b7f0cc;
+    --warn-bg: #2d2410;
+    --warn-text: #ffd89a;
+    --err-bg: #2f1517;
+    --err-text: #ffc2c2;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+.card {
+  max-width: 32rem;
+  margin: 2rem auto;
+  padding: 1.5rem 1rem 2rem;
+  background: var(--card);
+  border-radius: 1rem;
+}
+
+@media (max-width: 34rem) {
+  .card {
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+}
+
+.brand {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+ul {
+  padding-left: 1.25rem;
+  color: var(--muted);
+}
+
+.button {
+  display: block;
+  margin-top: 1.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+}
+
+.notice {
+  padding: 1rem;
+  border-radius: 0.75rem;
+}
+
+.notice p,
+.notice ul {
+  color: inherit;
+}
+
+.notice-success {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.notice-warning {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.notice-error {
+  background: var(--err-bg);
+  color: var(--err-text);
+}
+
+.brand a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.card-wide {
+  max-width: 46rem;
+}
+
+.card-wide h2 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.review-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--warn-text);
+  border-radius: 0.5rem;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 0.9rem;
+}
+
+mark.pending {
+  padding: 0 0.2em;
+  border-radius: 0.2em;
+  background: #ffe066;
+  color: #1f1500;
+}
+
+.toc {
+  columns: 2 14rem;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.toc a {
+  color: var(--accent);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--bg);
+  text-align: left;
+  vertical-align: top;
+}
+
+th[scope='row'] code {
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+.template {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+.footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bg);
+  font-size: 0.85rem;
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.footer a {
+  color: var(--muted);
+}

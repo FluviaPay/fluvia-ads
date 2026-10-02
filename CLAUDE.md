@@ -74,11 +74,16 @@ pnpm dev            # wrangler dev + vite
 pnpm test
 pnpm db:generate    # drizzle-kit generate
 pnpm db:migrate
-pnpm run deploy     # wrangler deploy (`pnpm deploy` es un comando propio de pnpm)
+pnpm run deploy     # wrangler deploy --env staging (`pnpm deploy` es un comando propio de pnpm)
+pnpm run deploy:production
 ```
 
 ## Variables de entorno
 DATABASE_URL, META_APP_ID, META_APP_SECRET, META_SYSTEM_USER_TOKEN, META_BUSINESS_ID, META_SANDBOX_AD_ACCOUNT_ID, COLOCA_API_KEY, COLOCA_WEBHOOK_SECRET, KAPSO_API_KEY, KAPSO_WEBHOOK_SECRET, ALEGRA_USER, ALEGRA_TOKEN, ANTHROPIC_API_KEY
+Además (no secretas): ENVIRONMENT (development | staging | production, la fija wrangler.toml), META_MODE (mock | sandbox | live; `live` solo con ENVIRONMENT=production) y META_MOCK_SCENARIO (solo en mock).
+Conexión con Meta (login del cliente): secretos TOKEN_ENCRYPTION_KEY (32 bytes en base64; cifra los tokens de clientes), OAUTH_STATE_SECRET e INTERNAL_API_TOKEN (generar enlaces); variables META_LOGIN_CONFIG_ID, WEB_BASE_URL y API_BASE_URL (la fija wrangler.toml por ambiente). La web usa VITE_API_BASE_URL.
+Crear la cuenta publicitaria del cliente (modo live) además requiere META_SYSTEM_USER_ID, META_AD_ACCOUNT_TIMEZONE_ID (id numérico de Bogotá en Meta), META_END_ADVERTISER, META_MEDIA_AGENCY y META_PARTNER: aún por decidir; si faltan se crea una tarea CONFIG_MISSING.
+Cada ambiente tiene su propia DATABASE_URL; staging apunta a una rama de Neon. Los secretos se cargan por ambiente con `wrangler secret put <NOMBRE> --env staging|production`.
 
 ## Decisiones que dependen de terceros (no suponer)
 - Qué expone la API de Meta sobre asignación de crédito, vínculo de WhatsApp y límites de cuentas → **Meta**. Si no está disponible, crear tarea humana de un clic.

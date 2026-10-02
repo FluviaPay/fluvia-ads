@@ -1,0 +1,23 @@
+{
+  "_source": "synthetic",
+  "scenario": "rate-limited",
+  "description": "Every call hits the ads-management usage limit (code 80004) and carries usage headers. Hand-written; NOT recorded.",
+  "responses": [],
+  "fallback": {
+    "status": 400,
+    "headers": {
+      "x-app-usage": "{\"call_count\":100,\"total_cputime\":25,\"total_time\":25}",
+      "x-business-use-case-usage": "{\"1000000000000001\":[{\"type\":\"ads_management\",\"call_count\":100,\"total_cputime\":25,\"total_time\":25,\"estimated_time_to_regain_access\":15}]}",
+      "x-ad-account-usage": "{\"acc_id_util_pct\":100,\"reset_time_duration\":300,\"ads_api_access_tier\":\"development_access\"}"
+    },
+    "body": {
+      "error": {
+        "message": "There have been too many calls to this ad-account. Wait a bit and try again.",
+        "type": "OAuthException",
+        "code": 80004,
+        "error_subcode": 2446079,
+        "fbtrace_id": "FIXTURE_RATELIMIT_0001"
+      }
+    }
+  }
+}

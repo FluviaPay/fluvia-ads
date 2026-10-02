@@ -11,3 +11,26 @@ KAPSO_WEBHOOK_SECRET=
 ALEGRA_USER=
 ALEGRA_TOKEN=
 ANTHROPIC_API_KEY=
+
+# Meta mode: mock | sandbox | live (live is only accepted when ENVIRONMENT=production)
+META_MODE=
+# Only used in mock mode: happy | permission-denied | rate-limited | token-expired | page-restricted
+META_MOCK_SCENARIO=
+
+# Encryption of client tokens at rest and signing of the OAuth state (generate each with
+# `openssl rand -base64 32`; TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes).
+TOKEN_ENCRYPTION_KEY=
+OAUTH_STATE_SECRET=
+# Shared secret for Fluvia's own backend to request connection links (Authorization: Bearer).
+INTERNAL_API_TOKEN=
+# Facebook Login for Business configuration id (only needed when META_MODE is not mock).
+META_LOGIN_CONFIG_ID=
+
+# Creating the client's ad account (live mode). Values still to be decided by the team
+# (docs/plan-meta.md §8.1, §18); while empty, live mode creates a CONFIG_MISSING task.
+META_SYSTEM_USER_ID=
+# Meta's numeric id for America/Bogota (not the IANA name).
+META_AD_ACCOUNT_TIMEZONE_ID=
+META_END_ADVERTISER=
+META_MEDIA_AGENCY=
+META_PARTNER=

@@ -8,6 +8,20 @@
       "when": 1790950081723,
       "tag": "0000_peaceful_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790962044551,
+      "tag": "0001_strange_energizer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790963167739,
+      "tag": "0002_crazy_marrow",
+      "breakpoints": true
     }
   ]
 }

@@ -11,9 +11,9 @@ export type AuditEntry = {
   after?: Record<string, unknown>;
 };
 
-/** Appends a row to audit_log and returns its id. Never put secrets in before/after. */
-export async function writeAuditLog(db: Pick<Db, 'insert'>, entry: AuditEntry): Promise<string> {
-  const [row] = await db
+/** The insert, not yet executed: lets callers run it in the same `db.batch` as a state change. */
+export function auditInsert(db: Pick<Db, 'insert'>, entry: AuditEntry) {
+  return db
     .insert(auditLog)
     .values({
       actorType: entry.actorType,
@@ -26,6 +26,11 @@ export async function writeAuditLog(db: Pick<Db, 'insert'>, entry: AuditEntry): 
       after: entry.after ?? null,
     })
     .returning({ id: auditLog.id });
+}
+
+/** Appends a row to audit_log and returns its id. Never put secrets in before/after. */
+export async function writeAuditLog(db: Pick<Db, 'insert'>, entry: AuditEntry): Promise<string> {
+  const [row] = await auditInsert(db, entry);
   if (!row) throw new Error('audit_log insert returned no row');
   return row.id;
 }

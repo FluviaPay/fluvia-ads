@@ -1,0 +1,19 @@
+{
+  "_source": "synthetic",
+  "scenario": "token-expired",
+  "description": "Every call fails because the access token expired (code 190, subcode 463). Hand-written; NOT recorded.",
+  "responses": [],
+  "fallback": {
+    "status": 400,
+    "headers": {},
+    "body": {
+      "error": {
+        "message": "Error validating access token: Session has expired.",
+        "type": "OAuthException",
+        "code": 190,
+        "error_subcode": 463,
+        "fbtrace_id": "FIXTURE_TOKEN_0001"
+      }
+    }
+  }
+}
