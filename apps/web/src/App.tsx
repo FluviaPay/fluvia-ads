@@ -1,13 +1,20 @@
-import { loginHref, resolveRoute } from './route';
+import { Footer } from './legal/Footer';
+import { LegalPage } from './legal/LegalPage';
+import { dataDeletion } from './legal/deletion';
+import { privacyPolicy } from './legal/privacy';
 import { resultView } from './messages';
+import { loginHref, resolveRoute } from './route';
 
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787';
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <main className="card">
-      <p className="brand">Fluvia Ads</p>
+    <main className={wide ? 'card card-wide' : 'card'}>
+      <p className="brand">
+        <a href="/">Fluvia Ads</a>
+      </p>
       {children}
+      <Footer />
     </main>
   );
 }
@@ -78,6 +85,18 @@ export function App() {
       return <ConnectPage state={route.state} />;
     case 'result':
       return <ResultPage search={search} />;
+    case 'privacy':
+      return (
+        <Card wide>
+          <LegalPage doc={privacyPolicy} />
+        </Card>
+      );
+    case 'deletion':
+      return (
+        <Card wide>
+          <LegalPage doc={dataDeletion} />
+        </Card>
+      );
     case 'home':
       return (
         <Card>

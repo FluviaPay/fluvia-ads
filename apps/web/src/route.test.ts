@@ -35,6 +35,13 @@ describe('resolveRoute', () => {
     expect(resolveRoute('/connect/result', '')).toMatchObject({ result: { status: 'error' } });
   });
 
+  it('serves the legal pages, with or without a trailing slash', () => {
+    expect(resolveRoute('/privacy', '')).toEqual({ name: 'privacy' });
+    expect(resolveRoute('/privacy/', '')).toEqual({ name: 'privacy' });
+    expect(resolveRoute('/data-deletion', '')).toEqual({ name: 'deletion' });
+    expect(resolveRoute('/data-deletion/', '?x=1')).toEqual({ name: 'deletion' });
+  });
+
   it('everything else is home', () => {
     for (const path of ['/', '', '/other', '/connect/result/extra']) {
       expect(resolveRoute(path, '').name).toBe('home');

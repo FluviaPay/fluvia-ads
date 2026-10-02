@@ -79,6 +79,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@fluvia/meta':
+        specifier: workspace:*
+        version: link:../../packages/meta
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0

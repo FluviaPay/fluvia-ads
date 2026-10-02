@@ -121,3 +121,100 @@ ul {
   background: var(--err-bg);
   color: var(--err-text);
 }
+
+.brand a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.card-wide {
+  max-width: 46rem;
+}
+
+.card-wide h2 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.review-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--warn-text);
+  border-radius: 0.5rem;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 0.9rem;
+}
+
+mark.pending {
+  padding: 0 0.2em;
+  border-radius: 0.2em;
+  background: #ffe066;
+  color: #1f1500;
+}
+
+.toc {
+  columns: 2 14rem;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.toc a {
+  color: var(--accent);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--bg);
+  text-align: left;
+  vertical-align: top;
+}
+
+th[scope='row'] code {
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+.template {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+.footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bg);
+  font-size: 0.85rem;
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.footer a {
+  color: var(--muted);
+}
