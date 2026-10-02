@@ -74,7 +74,7 @@ pnpm dev            # wrangler dev + vite
 pnpm test
 pnpm db:generate    # drizzle-kit generate
 pnpm db:migrate
-pnpm deploy         # wrangler deploy
+pnpm run deploy     # wrangler deploy (`pnpm deploy` es un comando propio de pnpm)
 ```
 
 ## Variables de entorno

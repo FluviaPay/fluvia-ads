@@ -1,0 +1,27 @@
+name = "fluvia-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+APP_VERSION = "0.0.0"
+
+# Secrets (DATABASE_URL, META_*, COLOCA_*, KAPSO_*, ALEGRA_*, ANTHROPIC_API_KEY)
+# live in `wrangler secret` / .dev.vars, never here.
+
+# Declared for later modules; not used yet.
+[[queues.producers]]
+binding = "EVENTS_QUEUE"
+queue = "fluvia-events"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "fluvia-assets"
+
+[[durable_objects.bindings]]
+name = "CLIENT_LOCK"
+class_name = "ClientLock"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ClientLock"]
