@@ -22,7 +22,7 @@ export type Bindings = {
   AUTH_SECRET?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
-  /** Optional: passkey domain. Defaults to the host of WEB_BASE_URL (e.g. app.fluvia.com). */
+  /** Optional: passkey domain. Defaults to the host of WEB_BASE_URL (e.g. app.fluviapay.com). */
   WEBAUTHN_RP_ID?: string;
   /**
    * Needed to create the client's ad account in Fluvia's portfolio (live mode only).
