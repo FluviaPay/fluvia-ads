@@ -78,3 +78,5 @@ export const staffRole = pgEnum('staff_role', ['admin', 'operator']);
 
 /** Where a staff session is in the two-factor login: email code done, TOTP pending or full. */
 export const sessionStage = pgEnum('session_stage', ['email_verified', 'full']);
+
+export const webauthnPurpose = pgEnum('webauthn_purpose', ['register', 'login']);

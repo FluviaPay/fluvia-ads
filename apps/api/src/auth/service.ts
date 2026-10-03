@@ -41,12 +41,12 @@ const tooMany = (retryAfterSeconds: number) =>
 
 export const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
-const human = (staff: Pick<StaffRecord, 'id'>) =>
+export const human = (staff: Pick<StaffRecord, 'id'>) =>
   ({ actorType: 'human', actorId: `staff:${staff.id}` }) as const;
 
 const totpAad = (staffId: string) => `staff_users:${staffId}`;
 
-async function enforce(
+export async function enforce(
   deps: AuthDeps,
   key: string,
   limit: number,
@@ -106,7 +106,7 @@ export async function requestLoginCode(
   };
 }
 
-async function openSession(
+export async function openSession(
   deps: AuthDeps,
   staff: StaffRecord,
   stage: 'email_verified' | 'full',
@@ -132,7 +132,11 @@ async function openSession(
 export async function verifyEmailCode(
   deps: AuthDeps,
   input: { email: string; code: string; ip: string },
-): Promise<{ session: IssuedSession; next: 'totp' | 'enroll_totp' }> {
+): Promise<{
+  session: IssuedSession;
+  next: 'second_factor' | 'enroll';
+  methods: { totp: boolean; passkey: boolean };
+}> {
   await enforce(deps, `verify:ip:${input.ip}`, AUTH_LIMITS.ipVerifyPerMinute, 60);
 
   const staff = await deps.store.findStaffByEmail(normalizeEmail(input.email));
@@ -170,7 +174,8 @@ export async function verifyEmailCode(
     entityType: 'staff_user',
     entityId: usable.id,
   });
-  return { session, next: usable.totpEnrolledAt ? 'totp' : 'enroll_totp' };
+  const methods = { totp: usable.totpEnrolledAt !== null, passkey: usable.passkeyCount > 0 };
+  return { session, next: methods.totp || methods.passkey ? 'second_factor' : 'enroll', methods };
 }
 
 /** Looks the cookie up. `requireFull` is false only for the second-factor endpoints. */
@@ -200,7 +205,7 @@ export async function authenticate(
   return found;
 }
 
-async function failMfa(deps: AuthDeps, ctx: AuthContext, action: string): Promise<never> {
+export async function failMfa(deps: AuthDeps, ctx: AuthContext, action: string): Promise<never> {
   const attempts = await deps.store.bumpMfaAttempts(ctx.session.id);
   if (attempts >= AUTH_LIMITS.maxMfaAttempts) {
     await deps.store.revokeSession(ctx.session.id, deps.now());
@@ -215,7 +220,7 @@ async function failMfa(deps: AuthDeps, ctx: AuthContext, action: string): Promis
   throw unauthorized('Invalid code');
 }
 
-async function completeLogin(
+export async function completeLogin(
   deps: AuthDeps,
   ctx: AuthContext,
   method: string,
@@ -237,7 +242,9 @@ export async function startTotpEnrollment(
   deps: AuthDeps,
   ctx: AuthContext,
 ): Promise<{ secret: string; otpauthUri: string }> {
-  if (ctx.staff.totpEnrolledAt) throw new HTTPException(409, { message: 'Already enrolled' });
+  if (ctx.staff.totpEnrolledAt || ctx.staff.passkeyCount > 0) {
+    throw new HTTPException(409, { message: 'Already enrolled' });
+  }
   const secret = generateTotpSecret();
   await deps.store.saveProposedTotp(
     ctx.staff.id,
@@ -255,7 +262,9 @@ export async function confirmTotpEnrollment(
   ctx: AuthContext,
   code: string,
 ): Promise<{ session: IssuedSession; recoveryCodes: string[] }> {
-  if (ctx.staff.totpEnrolledAt) throw new HTTPException(409, { message: 'Already enrolled' });
+  if (ctx.staff.totpEnrolledAt || ctx.staff.passkeyCount > 0) {
+    throw new HTTPException(409, { message: 'Already enrolled' });
+  }
   if (!ctx.staff.totpSecretEnc) throw new HTTPException(409, { message: 'Start enrollment first' });
 
   const secret = await decryptToken(
@@ -313,7 +322,9 @@ export async function useRecoveryCode(
   ctx: AuthContext,
   code: string,
 ): Promise<IssuedSession> {
-  if (!ctx.staff.totpEnrolledAt) throw new HTTPException(409, { message: 'Enroll first' });
+  if (!ctx.staff.totpEnrolledAt && ctx.staff.passkeyCount === 0) {
+    throw new HTTPException(409, { message: 'Enroll first' });
+  }
   const hash = await recoveryHash(deps, code);
   if (!(await deps.store.consumeRecoveryCode(ctx.staff.id, hash))) {
     return failMfa(deps, ctx, 'auth.recovery_failed');
@@ -327,7 +338,7 @@ export async function useRecoveryCode(
   return completeLogin(deps, ctx, 'recovery_code');
 }
 
-const recoveryHash = (deps: AuthDeps, code: string) =>
+export const recoveryHash = (deps: AuthDeps, code: string) =>
   hmacHex(deps.config.authSecret, `recovery:${normalizeRecoveryCode(code)}`);
 
 export async function logout(deps: AuthDeps, ctx: AuthContext): Promise<void> {

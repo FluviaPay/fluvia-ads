@@ -3,7 +3,7 @@ import { createApp } from '../app';
 import type { Bindings } from '../env';
 import { memoryRateLimiter } from './rate-limit';
 import { sha256Hex } from './secrets';
-import type { AuthStore, SessionRecord, StaffRecord } from './store';
+import type { AuthStore, PasskeyRecord, SessionRecord, StaffRecord } from './store';
 import { base32Decode } from './totp';
 import { hotp, totpStep } from './totp';
 import type { Mailer } from './mailer';
@@ -34,13 +34,23 @@ export function memoryAuthStore(seed: Partial<StaffRecord>[] = []) {
     createdAt: number;
   };
   type Session = SessionRecord & { tokenHash: string };
-  const staff = new Map<string, StaffRecord & { recovery: string[]; createdAt: Date }>();
+  type Staff = Omit<StaffRecord, 'passkeyCount'> & { recovery: string[]; createdAt: Date };
+  const staff = new Map<string, Staff>();
+  const passkeys: PasskeyRecord[] = [];
+  const challenges: {
+    id: string;
+    purpose: 'register' | 'login';
+    challenge: string;
+    staffUserId: string | null;
+    expiresAt: Date;
+    consumedAt: Date | null;
+  }[] = [];
   const codes: Code[] = [];
   const sessions: Session[] = [];
   let seq = 0;
   const id = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`;
 
-  const addStaff = (input: Partial<StaffRecord> & { email: string }) => {
+  const addStaff = (input: Partial<Omit<StaffRecord, 'passkeyCount'>> & { email: string }) => {
     const record = {
       id: id(),
       name: 'Test',
@@ -57,7 +67,7 @@ export function memoryAuthStore(seed: Partial<StaffRecord>[] = []) {
     return record;
   };
   seed.forEach((s) => addStaff(s as Partial<StaffRecord> & { email: string }));
-  const view = (s: StaffRecord): StaffRecord => ({
+  const view = (s: Staff): StaffRecord => ({
     id: s.id,
     email: s.email,
     name: s.name,
@@ -66,6 +76,7 @@ export function memoryAuthStore(seed: Partial<StaffRecord>[] = []) {
     totpEnrolledAt: s.totpEnrolledAt,
     totpLastStep: s.totpLastStep,
     disabledAt: s.disabledAt,
+    passkeyCount: passkeys.filter((p) => p.staffUserId === s.id).length,
   });
   const byId = (i: string) => staff.get(i);
 
@@ -91,7 +102,10 @@ export function memoryAuthStore(seed: Partial<StaffRecord>[] = []) {
       s.disabledAt = disabledAt;
       return true;
     },
-    async resetTotp(i, now) {
+    async resetFactors(i, now) {
+      for (let k = passkeys.length - 1; k >= 0; k--) {
+        if (passkeys[k]?.staffUserId === i) passkeys.splice(k, 1);
+      }
       const s = byId(i);
       if (s)
         Object.assign(s, {
@@ -195,8 +209,61 @@ export function memoryAuthStore(seed: Partial<StaffRecord>[] = []) {
       s.recovery = s.recovery.filter((h) => h !== hash);
       return true;
     },
+    async setRecoveryCodesIfEmpty(i, hashes) {
+      const s = byId(i);
+      if (!s || s.recovery.length > 0) return false;
+      s.recovery = hashes;
+      return true;
+    },
+    async createChallenge({ purpose, challenge, staffUserId, expiresAt }) {
+      const row = {
+        id: crypto.randomUUID(),
+        purpose,
+        challenge,
+        staffUserId,
+        expiresAt,
+        consumedAt: null,
+      };
+      challenges.push(row);
+      return row.id;
+    },
+    async consumeChallenge({ id: i, purpose, now }) {
+      const c = challenges.find((x) => x.id === i);
+      if (!c || c.purpose !== purpose || c.consumedAt || c.expiresAt <= now) return null;
+      c.consumedAt = now;
+      return { challenge: c.challenge, staffUserId: c.staffUserId };
+    },
+    async addPasskey(input) {
+      if (passkeys.some((p) => p.credentialId === input.credentialId)) return false;
+      passkeys.push({
+        ...input,
+        id: crypto.randomUUID(),
+        lastUsedAt: null,
+        createdAt: new Date(0),
+      });
+      return true;
+    },
+    async findPasskeyByCredentialId(credentialId) {
+      return passkeys.find((p) => p.credentialId === credentialId) ?? null;
+    },
+    async listPasskeys(staffUserId) {
+      return passkeys.filter((p) => p.staffUserId === staffUserId);
+    },
+    async recordPasskeyUse({ id: i, counter, now }) {
+      const p = passkeys.find((x) => x.id === i);
+      if (!p || !(counter > p.counter || (counter === 0 && p.counter === 0))) return false;
+      p.counter = counter;
+      p.lastUsedAt = now;
+      return true;
+    },
+    async deletePasskey(staffUserId, i) {
+      const k = passkeys.findIndex((p) => p.id === i && p.staffUserId === staffUserId);
+      if (k < 0) return false;
+      passkeys.splice(k, 1);
+      return true;
+    },
   };
-  return { store, staff, codes, sessions, addStaff };
+  return { store, staff, codes, sessions, addStaff, passkeys, challenges };
 }
 
 export function authHarness(

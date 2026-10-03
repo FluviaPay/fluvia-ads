@@ -1,7 +1,16 @@
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { Hono, type Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { clearSessionCookie, writeSessionCookie } from '../auth/cookie';
+import {
+  finishPasskeyLogin,
+  finishPasskeyRegistration,
+  listPasskeys,
+  removePasskey,
+  startPasskeyLogin,
+  startPasskeyRegistration,
+} from '../auth/passkeys';
 import {
   confirmTotpEnrollment,
   logout,
@@ -23,11 +32,34 @@ const verifyBody = z.strictObject({ email, code: z.string().regex(/^\d{6}$/) });
 const totpBody = z.strictObject({ code: z.string().regex(/^\d{6}$/) });
 const recoveryBody = z.strictObject({ code: z.string().min(8).max(16) });
 
+const deviceName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(60)
+  // No control characters or markup-ish brackets: it is shown back in the interface.
+  .regex(/^[^\p{C}<>]+$/u);
+const credentialJson = z.looseObject({
+  id: z.string().min(1).max(1024),
+  rawId: z.string().max(1024),
+  type: z.literal('public-key'),
+  response: z.looseObject({}),
+  clientExtensionResults: z.looseObject({}),
+});
+const challengeId = z.uuid();
+const passkeyLoginBody = z.strictObject({ challengeId, response: credentialJson });
+const passkeyRegisterBody = z.strictObject({
+  challengeId,
+  deviceName,
+  response: credentialJson,
+});
+
 const clientIp = (c: Context<AppEnv>) => c.req.header('cf-connecting-ip') ?? 'unknown';
 
 export function createAuthRoutes() {
   const routes = new Hono<AppEnv>();
-  routes.use(bodyLimit(2048));
+  // Passkey answers are a few KB; every other body here is tiny and strictly validated.
+  routes.use(bodyLimit(16_384));
 
   /** Defers slow work past the response when running on Workers; awaits it in tests. */
   const defer = async (c: Context<AppEnv>, work: Promise<void>) => {
@@ -53,9 +85,9 @@ export function createAuthRoutes() {
   routes.post('/verify', async (c) => {
     const body = await parseBody(c, verifyBody);
     const deps = c.var.getAuth();
-    const { session, next } = await verifyEmailCode(deps, { ...body, ip: clientIp(c) });
+    const { session, next, methods } = await verifyEmailCode(deps, { ...body, ip: clientIp(c) });
     writeSessionCookie(c, deps.config.secureCookies, session);
-    return c.json({ next });
+    return c.json({ next, methods });
   });
 
   routes.post('/totp/enroll', async (c) => {
@@ -92,11 +124,68 @@ export function createAuthRoutes() {
     return c.json({ ok: true });
   });
 
+  // ---- Passkeys ---------------------------------------------------------------------
+  // Login is anonymous and complete on its own: no email code needed.
+  routes.post('/passkey/login/options', async (c) => {
+    return c.json(await startPasskeyLogin(c.var.getAuth(), { ip: clientIp(c) }));
+  });
+
+  routes.post('/passkey/login/verify', async (c) => {
+    const body = await parseBody(c, passkeyLoginBody);
+    const deps = c.var.getAuth();
+    const session = await finishPasskeyLogin(deps, {
+      challengeId: body.challengeId,
+      response: body.response as unknown as AuthenticationResponseJSON,
+      ip: clientIp(c),
+    });
+    writeSessionCookie(c, deps.config.secureCookies, session);
+    return c.json({ ok: true });
+  });
+
+  /** A full session, or the half session of a person with no second factor yet. */
+  const anyStage = async (c: Context<AppEnv>) => {
+    const ctx = (await currentStaff(c, 'full')) ?? (await currentStaff(c, 'email_verified'));
+    if (!ctx) throw new HTTPException(401, { message: 'Unauthorized' });
+    return ctx;
+  };
+
+  routes.post('/passkey/register/options', async (c) => {
+    return c.json(await startPasskeyRegistration(c.var.getAuth(), await anyStage(c)));
+  });
+
+  routes.post('/passkey/register/verify', async (c) => {
+    const ctx = await anyStage(c);
+    const body = await parseBody(c, passkeyRegisterBody);
+    const deps = c.var.getAuth();
+    const result = await finishPasskeyRegistration(deps, ctx, {
+      challengeId: body.challengeId,
+      deviceName: body.deviceName,
+      response: body.response as unknown as RegistrationResponseJSON,
+    });
+    if (result.session) writeSessionCookie(c, deps.config.secureCookies, result.session);
+    return c.json({ passkey: result.passkey, recoveryCodes: result.recoveryCodes }, 201);
+  });
+
+  routes.get('/passkeys', async (c) => {
+    const ctx = await currentStaff(c, 'full');
+    if (!ctx) throw new HTTPException(401, { message: 'Unauthorized' });
+    return c.json({ passkeys: await listPasskeys(c.var.getAuth(), ctx) });
+  });
+
+  routes.delete('/passkeys/:id', async (c) => {
+    const ctx = await currentStaff(c, 'full');
+    if (!ctx) throw new HTTPException(401, { message: 'Unauthorized' });
+    const id = z.uuid().safeParse(c.req.param('id'));
+    if (!id.success) throw new HTTPException(400, { message: 'Invalid id' });
+    await removePasskey(c.var.getAuth(), ctx, id.data);
+    return c.json({ ok: true });
+  });
+
   routes.get('/me', async (c) => {
     const ctx = await currentStaff(c, 'full');
     if (!ctx) throw new HTTPException(401, { message: 'Unauthorized' });
-    const { id, email: address, name, role } = ctx.staff;
-    return c.json({ id, email: address, name, role });
+    const { id, email: address, name, role, passkeyCount } = ctx.staff;
+    return c.json({ id, email: address, name, role, hasPasskey: passkeyCount > 0 });
   });
 
   routes.post('/logout', async (c) => {

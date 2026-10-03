@@ -3,8 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { cspPlugin } from '../../vite.config';
 import { resolveRoute } from '../route';
 import { ApiError, createConsoleApi, type Me, type Task } from './api';
-import { Console, StepForm, TaskDetail, TaskList } from './Console';
-import { errorText, formatSecret, payloadLines } from './text';
+import { Console, Devices, StepForm, TaskDetail, TaskList } from './Console';
+import {
+  errorText,
+  formatSecret,
+  passkeysSupported,
+  payloadLines,
+  suggestDeviceName,
+} from './text';
 
 const task = (patch: Partial<Task> = {}): Task => ({
   id: '11111111-1111-4111-8111-111111111111',
@@ -19,7 +25,13 @@ const task = (patch: Partial<Task> = {}): Task => ({
   createdAt: '2026-10-03T10:00:00Z',
   ...patch,
 });
-const me: Me = { id: 'u1', email: 'a@fluvia.test', name: 'Angela', role: 'operator' };
+const me: Me = {
+  id: 'u1',
+  email: 'a@fluvia.test',
+  name: 'Angela',
+  role: 'operator',
+  hasPasskey: false,
+};
 
 describe('console api client', () => {
   const okJson = (body: unknown) => vi.fn(async () => Response.json(body));
@@ -160,5 +172,83 @@ describe('content security policy', () => {
     expect(policy).toContain("object-src 'none'");
     expect(policy).not.toContain('unsafe-inline');
     expect(policy).not.toContain('unsafe-eval');
+  });
+});
+
+describe('passkeys', () => {
+  it('calls the passkey endpoints with the cookie and the CSRF header', async () => {
+    const fetchFn = vi.fn(async () => Response.json({ ok: true, passkeys: [] }));
+    const api = createConsoleApi('https://api.fluvia.test', fetchFn as unknown as typeof fetch);
+    await api.passkeyLoginOptions();
+    await api.passkeyLoginVerify('c1', { id: 'a' } as never);
+    await api.passkeyRegisterOptions();
+    await api.passkeyRegisterVerify('c2', 'Mi Mac', { id: 'b' } as never);
+    await api.listPasskeys();
+    await api.deletePasskey('x/y');
+    const calls = fetchFn.mock.calls as unknown as [string, RequestInit][];
+    expect(
+      calls.map(([url, init]) => `${init.method} ${url.replace('https://api.fluvia.test', '')}`),
+    ).toEqual([
+      'POST /auth/passkey/login/options',
+      'POST /auth/passkey/login/verify',
+      'POST /auth/passkey/register/options',
+      'POST /auth/passkey/register/verify',
+      'GET /auth/passkeys',
+      'DELETE /auth/passkeys/x%2Fy',
+    ]);
+    for (const [, init] of calls) {
+      expect(init.credentials).toBe('include');
+      const headers = init.headers as Record<string, string>;
+      expect(headers['x-fluvia-csrf']).toBe(init.method === 'GET' ? undefined : '1');
+    }
+    expect(JSON.parse(String(calls[3]?.[1].body))).toMatchObject({
+      challengeId: 'c2',
+      deviceName: 'Mi Mac',
+    });
+  });
+
+  it('explains a cancelled prompt and a duplicate device in Spanish', () => {
+    const cancelled = Object.assign(new Error('x'), { name: 'NotAllowedError' });
+    const duplicate = Object.assign(new Error('x'), { name: 'InvalidStateError' });
+    expect(errorText(cancelled)).toMatch(/Cancelaste/);
+    expect(errorText(duplicate)).toMatch(/ya está registrado/);
+    expect(errorText(new ApiError(403, 'x'))).toMatch(/passkey/);
+  });
+
+  it('suggests a device name from the user agent and detects missing support on the server', () => {
+    expect(suggestDeviceName('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('Mac');
+    expect(suggestDeviceName('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe('Windows');
+    expect(suggestDeviceName('Mozilla/5.0 (Linux; Android 14)')).toBe('Android');
+    expect(suggestDeviceName('')).toBe('Mi dispositivo');
+    expect(passkeysSupported()).toBe(false); // no window while rendering on the server
+  });
+
+  it('lists devices without key material and escapes their names', () => {
+    const passkey = {
+      id: 'p1',
+      deviceName: '<img src=x onerror=alert(1)>',
+      deviceType: 'multiDevice',
+      backedUp: true,
+      createdAt: '2026-10-03T10:00:00Z',
+      lastUsedAt: null,
+    };
+    const html = renderToStaticMarkup(
+      <Devices
+        passkeys={[passkey]}
+        busy={false}
+        supported={true}
+        onAdd={() => {}}
+        onRemove={() => {}}
+      />,
+    );
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('Sincronizada');
+    expect(html).toContain('Agregar passkey');
+    const unsupported = renderToStaticMarkup(
+      <Devices passkeys={[]} busy={false} supported={false} onAdd={() => {}} onRemove={() => {}} />,
+    );
+    expect(unsupported).toContain('no admite passkeys');
+    expect(unsupported).not.toContain('Agregar passkey');
   });
 });

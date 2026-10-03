@@ -40,3 +40,6 @@ META_PARTNER=
 AUTH_SECRET=
 RESEND_API_KEY=
 EMAIL_FROM=
+# Optional: passkey domain (must be the web host or a parent of it). Empty = host of WEB_BASE_URL.
+# Changing it later invalidates every registered passkey.
+WEBAUTHN_RP_ID=

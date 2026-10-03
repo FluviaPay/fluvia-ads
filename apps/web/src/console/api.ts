@@ -1,5 +1,21 @@
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/browser';
+
 export type Role = 'admin' | 'operator';
-export type Me = { id: string; email: string; name: string; role: Role };
+export type Me = { id: string; email: string; name: string; role: Role; hasPasskey: boolean };
+export type Methods = { totp: boolean; passkey: boolean };
+export type Passkey = {
+  id: string;
+  deviceName: string;
+  deviceType: string;
+  backedUp: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
 export type TaskStatus = 'open' | 'in_progress' | 'done' | 'dismissed';
 export type Task = {
   id: string;
@@ -53,7 +69,33 @@ export function createConsoleApi(baseUrl: string, fetchFn: typeof fetch = fetch)
   return {
     requestCode: (email: string) => post<{ ok: true }>('/auth/login', { email }),
     verifyCode: (email: string, code: string) =>
-      post<{ next: 'totp' | 'enroll_totp' }>('/auth/verify', { email, code }),
+      post<{ next: 'second_factor' | 'enroll'; methods: Methods }>('/auth/verify', {
+        email,
+        code,
+      }),
+    passkeyLoginOptions: () =>
+      post<{ challengeId: string; options: PublicKeyCredentialRequestOptionsJSON }>(
+        '/auth/passkey/login/options',
+      ),
+    passkeyLoginVerify: (challengeId: string, response: AuthenticationResponseJSON) =>
+      post<{ ok: true }>('/auth/passkey/login/verify', { challengeId, response }),
+    passkeyRegisterOptions: () =>
+      post<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }>(
+        '/auth/passkey/register/options',
+      ),
+    passkeyRegisterVerify: (
+      challengeId: string,
+      deviceName: string,
+      response: RegistrationResponseJSON,
+    ) =>
+      post<{ passkey: Passkey; recoveryCodes: string[] | null }>('/auth/passkey/register/verify', {
+        challengeId,
+        deviceName,
+        response,
+      }),
+    listPasskeys: () => call<{ passkeys: Passkey[] }>('GET', '/auth/passkeys'),
+    deletePasskey: (id: string) =>
+      call<{ ok: true }>('DELETE', `/auth/passkeys/${encodeURIComponent(id)}`),
     startEnrollment: () => post<{ secret: string; otpauthUri: string }>('/auth/totp/enroll'),
     confirmEnrollment: (code: string) =>
       post<{ recoveryCodes: string[] }>('/auth/totp/confirm', { code }),

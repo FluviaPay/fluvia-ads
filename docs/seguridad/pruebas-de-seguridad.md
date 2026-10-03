@@ -22,7 +22,7 @@ A esta actividad se le llama **pruebas de seguridad de aplicaciones (AppSec)**; 
 
 Basado en OWASP ASVS / Top 10. Marcar cada punto con fecha y quién lo hizo.
 
-1. **Autenticación:** probar 6 códigos distintos y verificar el bloqueo; reutilizar un código; reutilizar un TOTP en menos de 30 s; usar la cookie después de cerrar sesión; usar la cookie de una sesión a medias en `/console/tasks`.
+1. **Autenticación:** con un administrador sin passkey, comprobar que `/console/staff` responde 403; probar una passkey desde un dominio distinto (por ejemplo vía `/etc/hosts`) y confirmar que el navegador no la ofrece; probar 6 códigos distintos y verificar el bloqueo; reutilizar un código; reutilizar un TOTP en menos de 30 s; usar la cookie después de cerrar sesión; usar la cookie de una sesión a medias en `/console/tasks`.
 2. **Autorización:** con una cuenta `operator`, llamar a todas las rutas de `/console/staff`; cambiar ids en `/console/tasks/:id`; intentar resolver una tarea que otra persona tomó.
 3. **Sesión y navegador:** revisar en las herramientas del navegador que la cookie sea `HttpOnly` y `Secure`; desde otra página probar un `fetch` con credenciales hacia la API (debe fallar por CORS); probar sin el encabezado `x-fluvia-csrf`.
 4. **Entradas:** caracteres especiales, textos muy largos, JSON mal formado, tipos incorrectos en cada campo.

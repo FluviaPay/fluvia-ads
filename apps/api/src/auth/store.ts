@@ -1,4 +1,11 @@
-import { authSessions, loginCodes, staffUsers, type Db } from '@fluvia/db';
+import {
+  authSessions,
+  loginCodes,
+  staffPasskeys,
+  staffUsers,
+  webauthnChallenges,
+  type Db,
+} from '@fluvia/db';
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 
 export type Role = 'admin' | 'operator';
@@ -13,6 +20,23 @@ export type StaffRecord = {
   totpEnrolledAt: Date | null;
   totpLastStep: number | null;
   disabledAt: Date | null;
+  /** How many passkeys the person has registered (0 = none). */
+  passkeyCount: number;
+};
+
+export type PasskeyRecord = {
+  id: string;
+  staffUserId: string;
+  credentialId: string;
+  /** base64url COSE public key. */
+  publicKey: string;
+  counter: number;
+  transports: string[];
+  deviceName: string;
+  deviceType: string;
+  backedUp: boolean;
+  lastUsedAt: Date | null;
+  createdAt: Date;
 };
 
 export type SessionRecord = {
@@ -37,8 +61,8 @@ export type AuthStore = {
   /** Null when the email already exists. */
   createStaff(input: { email: string; name: string; role: Role }): Promise<StaffRecord | null>;
   setDisabled(id: string, disabledAt: Date | null): Promise<boolean>;
-  /** Removes TOTP and recovery codes so the person enrolls again; revokes their sessions. */
-  resetTotp(id: string, now: Date): Promise<void>;
+  /** Removes TOTP, passkeys and recovery codes so the person enrolls again; revokes sessions. */
+  resetFactors(id: string, now: Date): Promise<void>;
 
   /** Invalidates the user's earlier codes and stores the new one. */
   createLoginCode(input: {
@@ -82,6 +106,28 @@ export type AuthStore = {
   advanceTotpStep(staffUserId: string, step: number): Promise<boolean>;
   /** Atomic and single-use: true only for the first caller with an unused code. */
   consumeRecoveryCode(staffUserId: string, codeHash: string): Promise<boolean>;
+  /** Stores recovery codes only if the person has none yet (atomic). */
+  setRecoveryCodesIfEmpty(staffUserId: string, hashes: string[]): Promise<boolean>;
+
+  createChallenge(input: {
+    purpose: 'register' | 'login';
+    challenge: string;
+    staffUserId: string | null;
+    expiresAt: Date;
+  }): Promise<string>;
+  /** Atomic and single-use: the challenge only once, only for its purpose, only before expiry. */
+  consumeChallenge(input: {
+    id: string;
+    purpose: 'register' | 'login';
+    now: Date;
+  }): Promise<{ challenge: string; staffUserId: string | null } | null>;
+  /** False if that credential id already exists. */
+  addPasskey(input: Omit<PasskeyRecord, 'id' | 'lastUsedAt' | 'createdAt'>): Promise<boolean>;
+  findPasskeyByCredentialId(credentialId: string): Promise<PasskeyRecord | null>;
+  listPasskeys(staffUserId: string): Promise<PasskeyRecord[]>;
+  /** Accepts the new counter only if it went up (or both are 0); false means a possible clone. */
+  recordPasskeyUse(input: { id: string; counter: number; now: Date }): Promise<boolean>;
+  deletePasskey(staffUserId: string, id: string): Promise<boolean>;
 };
 
 const staffColumns = {
@@ -93,6 +139,7 @@ const staffColumns = {
   totpEnrolledAt: staffUsers.totpEnrolledAt,
   totpLastStep: staffUsers.totpLastStep,
   disabledAt: staffUsers.disabledAt,
+  passkeyCount: sql<number>`(select count(*)::int from ${staffPasskeys} where ${staffPasskeys.staffUserId} = ${staffUsers.id})`,
 };
 
 const sessionColumns = {
@@ -152,6 +199,64 @@ export const advanceTotpStepQuery = (db: Db, staffUserId: string, step: number) 
     )
     .returning({ id: staffUsers.id });
 
+export const consumeChallengeQuery = (
+  db: Db,
+  input: { id: string; purpose: 'register' | 'login'; now: Date },
+) =>
+  db
+    .update(webauthnChallenges)
+    .set({ consumedAt: input.now })
+    .where(
+      and(
+        eq(webauthnChallenges.id, input.id),
+        eq(webauthnChallenges.purpose, input.purpose),
+        isNull(webauthnChallenges.consumedAt),
+        gt(webauthnChallenges.expiresAt, input.now),
+      ),
+    )
+    .returning({
+      challenge: webauthnChallenges.challenge,
+      staffUserId: webauthnChallenges.staffUserId,
+    });
+
+export const recordPasskeyUseQuery = (db: Db, input: { id: string; counter: number; now: Date }) =>
+  db
+    .update(staffPasskeys)
+    .set({ counter: input.counter, lastUsedAt: input.now })
+    .where(
+      and(
+        eq(staffPasskeys.id, input.id),
+        sql`(${input.counter} > ${staffPasskeys.counter} or (${input.counter} = 0 and ${staffPasskeys.counter} = 0))`,
+      ),
+    )
+    .returning({ id: staffPasskeys.id });
+
+export const setRecoveryCodesIfEmptyQuery = (db: Db, staffUserId: string, hashes: string[]) =>
+  db
+    .update(staffUsers)
+    .set({ recoveryCodeHashes: hashes })
+    .where(
+      and(
+        eq(staffUsers.id, staffUserId),
+        sql`jsonb_array_length(${staffUsers.recoveryCodeHashes}) = 0`,
+      ),
+    )
+    .returning({ id: staffUsers.id });
+
+const passkeyColumns = {
+  id: staffPasskeys.id,
+  staffUserId: staffPasskeys.staffUserId,
+  credentialId: staffPasskeys.credentialId,
+  publicKey: staffPasskeys.publicKey,
+  counter: staffPasskeys.counter,
+  transports: staffPasskeys.transports,
+  deviceName: staffPasskeys.deviceName,
+  deviceType: staffPasskeys.deviceType,
+  backedUp: staffPasskeys.backedUp,
+  lastUsedAt: staffPasskeys.lastUsedAt,
+  createdAt: staffPasskeys.createdAt,
+};
+
 export function createAuthStore(db: Db): AuthStore {
   const staffBy = async (where: ReturnType<typeof eq>) => {
     const [row] = await db.select(staffColumns).from(staffUsers).where(where).limit(1);
@@ -187,7 +292,7 @@ export function createAuthStore(db: Db): AuthStore {
       return rows.length > 0;
     },
 
-    async resetTotp(id, now) {
+    async resetFactors(id, now) {
       await db.batch([
         db
           .update(staffUsers)
@@ -198,6 +303,7 @@ export function createAuthStore(db: Db): AuthStore {
             recoveryCodeHashes: [],
           })
           .where(eq(staffUsers.id, id)),
+        db.delete(staffPasskeys).where(eq(staffPasskeys.staffUserId, id)),
         db
           .update(authSessions)
           .set({ revokedAt: now })
@@ -295,6 +401,62 @@ export function createAuthStore(db: Db): AuthStore {
 
     async consumeRecoveryCode(staffUserId, codeHash) {
       return (await consumeRecoveryCodeQuery(db, staffUserId, codeHash)).length > 0;
+    },
+
+    async setRecoveryCodesIfEmpty(staffUserId, hashes) {
+      return (await setRecoveryCodesIfEmptyQuery(db, staffUserId, hashes)).length > 0;
+    },
+
+    async createChallenge({ purpose, challenge, staffUserId, expiresAt }) {
+      const [row] = await db
+        .insert(webauthnChallenges)
+        .values({ purpose, challenge, staffUserId, expiresAt })
+        .returning({ id: webauthnChallenges.id });
+      if (!row) throw new Error('challenge insert returned no row');
+      return row.id;
+    },
+
+    async consumeChallenge(input) {
+      const [row] = await consumeChallengeQuery(db, input);
+      return row ?? null;
+    },
+
+    async addPasskey(input) {
+      const rows = await db
+        .insert(staffPasskeys)
+        .values(input)
+        .onConflictDoNothing({ target: staffPasskeys.credentialId })
+        .returning({ id: staffPasskeys.id });
+      return rows.length > 0;
+    },
+
+    async findPasskeyByCredentialId(credentialId) {
+      const [row] = await db
+        .select(passkeyColumns)
+        .from(staffPasskeys)
+        .where(eq(staffPasskeys.credentialId, credentialId))
+        .limit(1);
+      return row ?? null;
+    },
+
+    async listPasskeys(staffUserId) {
+      return db
+        .select(passkeyColumns)
+        .from(staffPasskeys)
+        .where(eq(staffPasskeys.staffUserId, staffUserId))
+        .orderBy(staffPasskeys.createdAt);
+    },
+
+    async recordPasskeyUse(input) {
+      return (await recordPasskeyUseQuery(db, input)).length > 0;
+    },
+
+    async deletePasskey(staffUserId, id) {
+      const rows = await db
+        .delete(staffPasskeys)
+        .where(and(eq(staffPasskeys.id, id), eq(staffPasskeys.staffUserId, staffUserId)))
+        .returning({ id: staffPasskeys.id });
+      return rows.length > 0;
     },
   };
 }

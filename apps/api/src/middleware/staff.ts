@@ -35,3 +35,14 @@ export const requireStaff = (...roles: Role[]) =>
     c.set('staff', ctx);
     await next();
   });
+
+/**
+ * Managing people is the most sensitive thing the console does, so administrators must hold
+ * a passkey (phishing-resistant) before they can do it. Without one: 403 `passkey_required`.
+ */
+export const requirePasskey = createMiddleware<AppEnv>(async (c, next) => {
+  if (c.var.staff.staff.passkeyCount < 1) {
+    throw new HTTPException(403, { message: 'Register a passkey to manage people' });
+  }
+  await next();
+});

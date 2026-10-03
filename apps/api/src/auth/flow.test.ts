@@ -16,7 +16,10 @@ async function emailLogin(h: Harness, email = EMAIL) {
 /** Full first login: email code, TOTP enrollment, back with the full session. */
 async function fullLogin(h: Harness) {
   const { res, cookie } = await emailLogin(h);
-  expect(await res.json()).toEqual({ next: 'enroll_totp' });
+  expect(await res.json()).toEqual({
+    next: 'enroll',
+    methods: { totp: false, passkey: false },
+  });
   const enroll = (await (await h.call('/auth/totp/enroll', { cookie })).json()) as {
     secret: string;
   };
@@ -172,7 +175,10 @@ describe('second factor', () => {
     expect(first).toBeTruthy();
     // New login: email code, then TOTP. The step used at enrollment cannot be reused.
     const { cookie, res } = await emailLogin(h);
-    expect(await res.json()).toEqual({ next: 'totp' });
+    expect(await res.json()).toEqual({
+      next: 'second_factor',
+      methods: { totp: true, passkey: false },
+    });
     expect(
       (
         await h.call('/auth/totp/verify', {

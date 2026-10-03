@@ -42,7 +42,7 @@ export const corsForWeb = createMiddleware<AppEnv>(async (c, next) => {
   return cors({
     origin: (origin) => (allowed && origin === allowed ? origin : ''),
     credentials: true,
-    allowMethods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['content-type', 'x-fluvia-csrf'],
     maxAge: 600,
   })(c, next);

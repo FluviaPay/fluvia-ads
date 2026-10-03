@@ -80,6 +80,18 @@ async function setup(
       { email: 'mauricio@fluvia.test', name: 'Mauricio', role: 'admin' },
     ],
   });
+  // Administrators must hold a passkey to manage people (see requirePasskey).
+  const adminPerson = await h.store.findStaffByEmail('mauricio@fluvia.test');
+  await h.store.addPasskey({
+    staffUserId: adminPerson?.id ?? '',
+    credentialId: 'admin-credential',
+    publicKey: 'AAAA',
+    counter: 0,
+    transports: [],
+    deviceName: 'Llave de Mauricio',
+    deviceType: 'multiDevice',
+    backedUp: true,
+  });
   return {
     h,
     tasks,
@@ -98,7 +110,7 @@ const ROUTES: [string, string][] = [
   ['GET', '/console/staff'],
   ['POST', '/console/staff'],
   ['PATCH', `/console/staff/${ID_A}`],
-  ['POST', `/console/staff/${ID_A}/reset-totp`],
+  ['POST', `/console/staff/${ID_A}/reset-factors`],
   ['GET', '/console/anything-else'],
 ];
 
@@ -258,6 +270,21 @@ describe('staff management (admin)', () => {
     ).toBe(true);
   });
 
+  it('an administrator without a passkey cannot manage people yet', async () => {
+    const { h, admin } = await setup();
+    h.passkeys.length = 0;
+    for (const [method, path] of ROUTES.filter(([, p]) => p.startsWith('/console/staff'))) {
+      const res = await h.call(path, {
+        method,
+        cookie: admin,
+        ...(method === 'GET' ? {} : { body: {} }),
+      });
+      expect(res.status, `${method} ${path}`).toBe(403);
+    }
+    // Tasks are still available to them.
+    expect((await h.call('/console/tasks', { method: 'GET', cookie: admin })).status).toBe(200);
+  });
+
   it('lists people without any secret material', async () => {
     const { h, admin } = await setup();
     const body = JSON.stringify(
@@ -292,13 +319,14 @@ describe('staff management (admin)', () => {
     expect((await h.call('/console/tasks', { method: 'GET', cookie: angela })).status).toBe(401);
   });
 
-  it('resets TOTP and revokes sessions', async () => {
+  it('resets every sign-in factor (TOTP, passkeys, recovery codes) and revokes sessions', async () => {
     const { h, angela, admin } = await setup();
     const person = [...h.staff.values()].find((s) => s.email === 'angela@fluvia.test');
     if (person) Object.assign(person, { totpEnrolledAt: new Date(), totpSecretEnc: 'v1.x.y' });
-    const res = await h.call(`/console/staff/${person?.id}/reset-totp`, { cookie: admin });
+    const res = await h.call(`/console/staff/${person?.id}/reset-factors`, { cookie: admin });
     expect(res.status).toBe(200);
     expect(person?.totpEnrolledAt).toBeNull();
+    expect(h.passkeys.filter((p) => p.staffUserId === person?.id)).toEqual([]);
     expect((await h.call('/console/tasks', { method: 'GET', cookie: angela })).status).toBe(401);
   });
 });
