@@ -4,6 +4,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'connect'; state: string | null }
   | { name: 'result'; result: ConnectResult }
+  | { name: 'console' }
   | { name: 'privacy' }
   | { name: 'deletion' };
 
@@ -14,6 +15,7 @@ export function resolveRoute(pathname: string, search: string): Route {
     return { name: 'connect', state: new URLSearchParams(search).get('state') || null };
   }
   if (path === '/connect/result') return { name: 'result', result: decodeConnectResult(search) };
+  if (path === '/console') return { name: 'console' };
   if (path === '/privacy') return { name: 'privacy' };
   if (path === '/data-deletion') return { name: 'deletion' };
   return { name: 'home' };
