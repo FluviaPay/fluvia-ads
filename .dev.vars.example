@@ -34,3 +34,9 @@ META_AD_ACCOUNT_TIMEZONE_ID=
 META_END_ADVERTISER=
 META_MEDIA_AGENCY=
 META_PARTNER=
+
+# Staff login (console). AUTH_SECRET: `openssl rand -base64 32`. Without RESEND_API_KEY, in
+# development only, the login code is printed in the log instead of being emailed.
+AUTH_SECRET=
+RESEND_API_KEY=
+EMAIL_FROM=

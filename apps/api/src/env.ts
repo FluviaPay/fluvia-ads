@@ -1,4 +1,5 @@
 import type { Db } from '@fluvia/db';
+import type { AuthDeps } from './auth/service';
 import type { ConnectionStore } from './meta/store';
 
 export type Bindings = {
@@ -17,6 +18,10 @@ export type Bindings = {
   TOKEN_ENCRYPTION_KEY?: string;
   OAUTH_STATE_SECRET?: string;
   INTERNAL_API_TOKEN?: string;
+  /** Staff login: HMAC key (>= 32 chars), email provider key, sender address. */
+  AUTH_SECRET?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   /**
    * Needed to create the client's ad account in Fluvia's portfolio (live mode only).
    * Values still to be decided by the team: docs/plan-meta.md §8.1 and §18.
@@ -43,6 +48,7 @@ export type Bindings = {
   EVENTS_QUEUE: Queue;
   ASSETS: R2Bucket;
   CLIENT_LOCK: DurableObjectNamespace;
+  RATE_LIMITER?: DurableObjectNamespace;
 };
 
 export type Variables = {
@@ -50,6 +56,8 @@ export type Variables = {
   /** Lazy: the connection is only created when a route asks for it. */
   getDb: () => Db;
   getStore: () => ConnectionStore;
+  /** Staff login dependencies; throws NotConfiguredError (503) when the secrets are missing. */
+  getAuth: () => AuthDeps;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

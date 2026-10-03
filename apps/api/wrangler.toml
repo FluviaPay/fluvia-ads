@@ -13,8 +13,8 @@ compatibility_flags = ["nodejs_compat"]
 #   wrangler secret put <NAME> --env staging|production
 # DATABASE_URL, META_APP_ID, META_APP_SECRET, META_SYSTEM_USER_TOKEN, META_BUSINESS_ID,
 # META_SANDBOX_AD_ACCOUNT_ID, COLOCA_*, KAPSO_*, ALEGRA_*, ANTHROPIC_API_KEY,
-# TOKEN_ENCRYPTION_KEY (32 random bytes, base64), OAUTH_STATE_SECRET and INTERNAL_API_TOKEN
-# (long random strings). Generate each with: openssl rand -base64 32
+# TOKEN_ENCRYPTION_KEY (32 random bytes, base64), OAUTH_STATE_SECRET, INTERNAL_API_TOKEN and
+# AUTH_SECRET (long random strings), RESEND_API_KEY (staff login emails). Generate each with: openssl rand -base64 32
 # Each environment gets its own DATABASE_URL: staging points at a Neon *branch*.
 # Setting up a client's ad account needs META_BUSINESS_ID (a secret/var), META_SYSTEM_USER_ID,
 # META_AD_ACCOUNT_TIMEZONE_ID (Meta's numeric id for America/Bogota), META_END_ADVERTISER,
@@ -38,6 +38,8 @@ META_AD_ACCOUNT_TIMEZONE_ID = ""
 META_END_ADVERTISER = ""
 META_MEDIA_AGENCY = ""
 META_PARTNER = ""
+# Sender of the staff login emails (a domain verified in the email provider).
+EMAIL_FROM = ""
 
 [[queues.producers]]
 binding = "EVENTS_QUEUE"
@@ -59,9 +61,17 @@ bucket_name = "fluvia-assets-dev"
 name = "CLIENT_LOCK"
 class_name = "ClientLock"
 
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ClientLock"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["RateLimiter"]
 
 # --- staging -------------------------------------------------------------------
 [env.staging]
@@ -82,6 +92,8 @@ META_AD_ACCOUNT_TIMEZONE_ID = ""
 META_END_ADVERTISER = ""
 META_MEDIA_AGENCY = ""
 META_PARTNER = ""
+# Sender of the staff login emails (a domain verified in the email provider).
+EMAIL_FROM = ""
 
 [[env.staging.queues.producers]]
 binding = "EVENTS_QUEUE"
@@ -103,9 +115,17 @@ bucket_name = "fluvia-assets-staging"
 name = "CLIENT_LOCK"
 class_name = "ClientLock"
 
+[[env.staging.durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
 [[env.staging.migrations]]
 tag = "v1"
 new_sqlite_classes = ["ClientLock"]
+
+[[env.staging.migrations]]
+tag = "v2"
+new_sqlite_classes = ["RateLimiter"]
 
 # --- production ----------------------------------------------------------------
 [env.production]
@@ -126,6 +146,8 @@ META_AD_ACCOUNT_TIMEZONE_ID = ""
 META_END_ADVERTISER = ""
 META_MEDIA_AGENCY = ""
 META_PARTNER = ""
+# Sender of the staff login emails (a domain verified in the email provider).
+EMAIL_FROM = ""
 
 [[env.production.queues.producers]]
 binding = "EVENTS_QUEUE"
@@ -147,6 +169,14 @@ bucket_name = "fluvia-assets"
 name = "CLIENT_LOCK"
 class_name = "ClientLock"
 
+[[env.production.durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
 [[env.production.migrations]]
 tag = "v1"
 new_sqlite_classes = ["ClientLock"]
+
+[[env.production.migrations]]
+tag = "v2"
+new_sqlite_classes = ["RateLimiter"]

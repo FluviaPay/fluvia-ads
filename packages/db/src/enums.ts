@@ -73,3 +73,8 @@ export const ledgerKind = pgEnum('ledger_kind', ['pauta', 'servicio']);
 export const ledgerDirection = pgEnum('ledger_direction', ['in', 'out']);
 
 export const actorType = pgEnum('actor_type', ['ai', 'human', 'system']);
+
+export const staffRole = pgEnum('staff_role', ['admin', 'operator']);
+
+/** Where a staff session is in the two-factor login: email code done, TOTP pending or full. */
+export const sessionStage = pgEnum('session_stage', ['email_verified', 'full']);
