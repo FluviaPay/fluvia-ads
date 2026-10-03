@@ -113,3 +113,19 @@ it('tracks when the page was assigned to the ad account (nullable)', () => {
   expect(column).toBeDefined();
   expect(column?.notNull).toBe(false);
 });
+
+it('keeps staff authentication tables apart from the 12 business tables', () => {
+  expect(getTableConfig(s.staffUsers).name).toBe('staff_users');
+  expect(getTableConfig(s.loginCodes).name).toBe('login_codes');
+  expect(getTableConfig(s.authSessions).name).toBe('auth_sessions');
+  // Secrets are stored hashed or encrypted: no column holds a plain token or code.
+  const names = [s.staffUsers, s.loginCodes, s.authSessions].flatMap((t) =>
+    columns(t).map((c) => c.name),
+  );
+  expect(names).toContain('token_hash');
+  expect(names).toContain('code_hash');
+  expect(names).toContain('totp_secret_enc');
+  expect(names).not.toContain('token');
+  expect(names).not.toContain('code');
+  expect(names).not.toContain('totp_secret');
+});

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   check,
   date,
   index,
@@ -28,6 +29,8 @@ import {
   orderStatus,
   paymentMethod,
   paymentStatus,
+  sessionStage,
+  staffRole,
   taskStatus,
 } from './enums';
 
@@ -285,4 +288,62 @@ export const auditLog = pgTable(
     index('audit_log_client_id_idx').on(t.clientId),
     index('audit_log_entity_idx').on(t.entityType, t.entityId),
   ],
+);
+
+// ---- Staff authentication (not part of the 12 business tables) -------------------------
+// Invite-only: rows are created by an admin (or the first admin via SQL), never by sign-up.
+
+export const staffUsers = pgTable('staff_users', {
+  id: id(),
+  /** Lowercase, unique. */
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  role: staffRole('role').notNull().default('operator'),
+  /** AES-GCM ciphertext (aad `staff_users:<id>`); never the plain secret. */
+  totpSecretEnc: text('totp_secret_enc'),
+  /** Null while the secret is only proposed and not yet confirmed with a valid code. */
+  totpEnrolledAt: timestamp('totp_enrolled_at', { withTimezone: true }),
+  /** Last accepted 30 s step: a TOTP code cannot be replayed. */
+  totpLastStep: bigint('totp_last_step', { mode: 'number' }),
+  /** SHA-256 hashes of the unused recovery codes. */
+  recoveryCodeHashes: jsonb('recovery_code_hashes').$type<string[]>().notNull().default([]),
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  ...timestamps(),
+});
+
+/** One-time email codes. Only an HMAC of the code is stored. */
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: id(),
+    staffUserId: uuid('staff_user_id')
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: 'cascade' }),
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('login_codes_user_idx').on(t.staffUserId, t.createdAt)],
+);
+
+/** Only the SHA-256 of the session token is stored: a database leak does not leak sessions. */
+export const authSessions = pgTable(
+  'auth_sessions',
+  {
+    id: id(),
+    staffUserId: uuid('staff_user_id')
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    stage: sessionStage('stage').notNull().default('email_verified'),
+    /** Wrong second-factor attempts on this session; the session dies after a few. */
+    mfaAttempts: integer('mfa_attempts').notNull().default(0),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('auth_sessions_user_idx').on(t.staffUserId)],
 );

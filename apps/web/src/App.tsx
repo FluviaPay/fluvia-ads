@@ -1,3 +1,4 @@
+import { Console } from './console/Console';
 import { Footer } from './legal/Footer';
 import { LegalPage } from './legal/LegalPage';
 import { dataDeletion } from './legal/deletion';
@@ -85,6 +86,12 @@ export function App() {
       return <ConnectPage state={route.state} />;
     case 'result':
       return <ResultPage search={search} />;
+    case 'console':
+      return (
+        <Card wide>
+          <Console apiBaseUrl={API_BASE_URL} />
+        </Card>
+      );
     case 'privacy':
       return (
         <Card wide>

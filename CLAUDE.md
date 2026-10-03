@@ -54,6 +54,7 @@ Cada módulo termina publicando un evento en Queues que dispara el siguiente. Cu
 
 ## Modelo de datos (12 tablas)
 clients, client_assets, meta_connections (page_id, ig_id, ad_account_id, destinos de mensajes, pixel_id, permisos), orders (presupuesto pauta, valor servicio, duración, KPI acordado, estado), payments, funding, campaigns, creatives, metrics_daily, tasks, ledger, audit_log.
+Además, para el ingreso del equipo (no son tablas de negocio): staff_users, login_codes y auth_sessions. Ingreso solo por invitación, con código por correo + TOTP; ver docs/seguridad/.
 Montos en COP como enteros (`bigint`), nunca float.
 
 ## Plantillas de campaña
@@ -82,6 +83,7 @@ pnpm run deploy:production
 DATABASE_URL, META_APP_ID, META_APP_SECRET, META_SYSTEM_USER_TOKEN, META_BUSINESS_ID, META_SANDBOX_AD_ACCOUNT_ID, COLOCA_API_KEY, COLOCA_WEBHOOK_SECRET, KAPSO_API_KEY, KAPSO_WEBHOOK_SECRET, ALEGRA_USER, ALEGRA_TOKEN, ANTHROPIC_API_KEY
 Además (no secretas): ENVIRONMENT (development | staging | production, la fija wrangler.toml), META_MODE (mock | sandbox | live; `live` solo con ENVIRONMENT=production) y META_MOCK_SCENARIO (solo en mock).
 Conexión con Meta (login del cliente): secretos TOKEN_ENCRYPTION_KEY (32 bytes en base64; cifra los tokens de clientes), OAUTH_STATE_SECRET e INTERNAL_API_TOKEN (generar enlaces); variables META_LOGIN_CONFIG_ID, WEB_BASE_URL y API_BASE_URL (la fija wrangler.toml por ambiente). La web usa VITE_API_BASE_URL.
+Ingreso del equipo a la consola: secretos AUTH_SECRET (≥32 caracteres; firma códigos de correo y de recuperación) y RESEND_API_KEY; variable EMAIL_FROM. La web y la API deben ser del mismo dominio registrable (cookie SameSite=Lax).
 Crear la cuenta publicitaria del cliente (modo live) además requiere META_SYSTEM_USER_ID, META_AD_ACCOUNT_TIMEZONE_ID (id numérico de Bogotá en Meta), META_END_ADVERTISER, META_MEDIA_AGENCY y META_PARTNER: aún por decidir; si faltan se crea una tarea CONFIG_MISSING.
 Cada ambiente tiene su propia DATABASE_URL; staging apunta a una rama de Neon. Los secretos se cargan por ambiente con `wrangler secret put <NOMBRE> --env staging|production`.
 
