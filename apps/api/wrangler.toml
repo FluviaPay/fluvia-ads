@@ -76,16 +76,18 @@ new_sqlite_classes = ["RateLimiter"]
 # --- staging -------------------------------------------------------------------
 [env.staging]
 name = "fluvia-api-staging"
+# Custom domain: `wrangler deploy` creates its DNS record and certificate.
+routes = [{ pattern = "api-staging.fluviapay.com", custom_domain = true }]
 
 [env.staging.vars]
 APP_VERSION = "0.0.0"
 ENVIRONMENT = "staging"
 # Switch to "sandbox" once META_SANDBOX_AD_ACCOUNT_ID and the token exist for staging.
 META_MODE = "mock"
-# Public origins (no trailing slash). Empty until the staging domains exist: the
-# Meta connection endpoints answer 503 not_configured meanwhile.
-WEB_BASE_URL = ""
-API_BASE_URL = ""
+# Public origins (no trailing slash). The web and the API share the registrable domain
+# (the session cookie is SameSite=Lax).
+WEB_BASE_URL = "https://app-staging.fluviapay.com"
+API_BASE_URL = "https://api-staging.fluviapay.com"
 META_LOGIN_CONFIG_ID = ""
 META_SYSTEM_USER_ID = ""
 META_AD_ACCOUNT_TIMEZONE_ID = ""
@@ -93,7 +95,7 @@ META_END_ADVERTISER = ""
 META_MEDIA_AGENCY = ""
 META_PARTNER = ""
 # Sender of the staff login emails (a domain verified in the email provider).
-EMAIL_FROM = ""
+EMAIL_FROM = "Fluvia <no-reply@fluviapay.com>"
 
 [[env.staging.queues.producers]]
 binding = "EVENTS_QUEUE"
@@ -130,16 +132,18 @@ new_sqlite_classes = ["RateLimiter"]
 # --- production ----------------------------------------------------------------
 [env.production]
 name = "fluvia-api-production"
+# Custom domain: `wrangler deploy` creates its DNS record and certificate.
+routes = [{ pattern = "api.fluviapay.com", custom_domain = true }]
 
 [env.production.vars]
 APP_VERSION = "0.0.0"
 ENVIRONMENT = "production"
 # Switch to "live" only after Meta's App Review and with META_SYSTEM_USER_TOKEN set.
 META_MODE = "mock"
-# Public origins (no trailing slash). Empty until the production domains exist: the
-# Meta connection endpoints answer 503 not_configured meanwhile.
-WEB_BASE_URL = ""
-API_BASE_URL = ""
+# Public origins (no trailing slash). The web and the API share the registrable domain
+# (the session cookie is SameSite=Lax).
+WEB_BASE_URL = "https://app.fluviapay.com"
+API_BASE_URL = "https://api.fluviapay.com"
 META_LOGIN_CONFIG_ID = ""
 META_SYSTEM_USER_ID = ""
 META_AD_ACCOUNT_TIMEZONE_ID = ""
@@ -147,7 +151,7 @@ META_END_ADVERTISER = ""
 META_MEDIA_AGENCY = ""
 META_PARTNER = ""
 # Sender of the staff login emails (a domain verified in the email provider).
-EMAIL_FROM = ""
+EMAIL_FROM = "Fluvia <no-reply@fluviapay.com>"
 
 [[env.production.queues.producers]]
 binding = "EVENTS_QUEUE"

@@ -14,7 +14,7 @@ Variables por ambiente en `apps/api/wrangler.toml`: `WEB_BASE_URL=https://app.<t
 
 ### Passkeys y el dominio
 
-Las passkeys quedan atadas al dominio (`WEBAUTHN_RP_ID`). Por defecto es el host de `WEB_BASE_URL`, es decir `app.fluvia.com` en producción. **No lo cambies después de que alguien registre una passkey**: dejarían de funcionar y habría que registrarlas de nuevo (con los códigos de recuperación o un restablecimiento). Para staging usa su propio subdominio (por ejemplo `app-staging.fluvia.com`); no reutilices el de producción.
+Las passkeys quedan atadas al dominio (`WEBAUTHN_RP_ID`). Por defecto es el host de `WEB_BASE_URL`, es decir `app.fluviapay.com` en producción. **No lo cambies después de que alguien registre una passkey**: dejarían de funcionar y habría que registrarlas de nuevo (con los códigos de recuperación o un restablecimiento). Para staging usa su propio subdominio (por ejemplo `app-staging.fluviapay.com`); no reutilices el de producción.
 
 ## 2. Correo de envío (Resend)
 
