@@ -5,7 +5,7 @@ import { fromBase64, toBase64Url, utf8 } from '../encoding';
 import type { AppEnv, Bindings } from '../env';
 import { createTaskStore, type TaskRow, type TaskStore } from '../console/tasks-store';
 import { bodyLimit } from '../middleware/security';
-import { requireStaff } from '../middleware/staff';
+import { requirePasskey, requireStaff } from '../middleware/staff';
 import { parseBody, parseQuery } from '../validate';
 
 const STATUSES = ['open', 'in_progress', 'done', 'dismissed'] as const;
@@ -139,6 +139,7 @@ export function createConsoleRoutes(options: {
   // ---- Staff management: admins only --------------------------------------------------
   const admin = new Hono<AppEnv>();
   admin.use(requireStaff('admin'));
+  admin.use(requirePasskey);
 
   admin.get('/', async (c) => {
     const people = await c.var.getAuth().store.listStaff();
@@ -196,17 +197,17 @@ export function createConsoleRoutes(options: {
     return c.json({ ok: true });
   });
 
-  admin.post('/:id/reset-totp', async (c) => {
+  admin.post('/:id/reset-factors', async (c) => {
     const id = idParam(c);
     const deps = c.var.getAuth();
     if (!(await deps.store.findStaffById(id))) {
       throw new HTTPException(404, { message: 'Person not found' });
     }
-    await deps.store.resetTotp(id, options.now());
+    await deps.store.resetFactors(id, options.now());
     await deps.audit({
       actorType: 'human',
       actorId: `staff:${c.var.staff.staff.id}`,
-      action: 'staff.totp_reset',
+      action: 'staff.factors_reset',
       entityType: 'staff_user',
       entityId: id,
     });

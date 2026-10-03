@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   date,
   index,
@@ -32,6 +33,7 @@ import {
   sessionStage,
   staffRole,
   taskStatus,
+  webauthnPurpose,
 } from './enums';
 
 export * from './enums';
@@ -347,3 +349,40 @@ export const authSessions = pgTable(
   },
   (t) => [index('auth_sessions_user_idx').on(t.staffUserId)],
 );
+
+/** Passkeys (WebAuthn). Only the public key is stored: there is no secret to steal here. */
+export const staffPasskeys = pgTable(
+  'staff_passkeys',
+  {
+    id: id(),
+    staffUserId: uuid('staff_user_id')
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: 'cascade' }),
+    /** base64url credential id the browser sends back. */
+    credentialId: text('credential_id').notNull().unique(),
+    /** base64url COSE public key. */
+    publicKey: text('public_key').notNull(),
+    /** Signature counter; it must only go up (a lower value means a cloned key). */
+    counter: bigint('counter', { mode: 'number' }).notNull().default(0),
+    transports: jsonb('transports').$type<string[]>().notNull().default([]),
+    deviceName: text('device_name').notNull(),
+    /** 'singleDevice' (hardware key) or 'multiDevice' (synced passkey). */
+    deviceType: text('device_type').notNull(),
+    backedUp: boolean('backed_up').notNull().default(false),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('staff_passkeys_user_idx').on(t.staffUserId)],
+);
+
+/** One-time WebAuthn challenges: single use, short lived. */
+export const webauthnChallenges = pgTable('webauthn_challenges', {
+  id: id(),
+  purpose: webauthnPurpose('purpose').notNull(),
+  challenge: text('challenge').notNull(),
+  /** Set for registration (who is adding a passkey); null for the anonymous login. */
+  staffUserId: uuid('staff_user_id').references(() => staffUsers.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});

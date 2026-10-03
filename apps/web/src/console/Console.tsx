@@ -1,21 +1,33 @@
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { useCallback, useEffect, useState } from 'react';
 import {
   createConsoleApi,
   type ConsoleApi,
   type Me,
+  type Methods,
+  type Passkey,
   type Task,
   type TaskAction,
   type TaskStatus,
 } from './api';
-import { STATUS_LABEL, errorText, formatSecret, payloadLines } from './text';
+import {
+  STATUS_LABEL,
+  errorText,
+  formatSecret,
+  passkeysSupported,
+  payloadLines,
+  suggestDeviceName,
+} from './text';
 
 type Step =
   | { name: 'loading' }
   | { name: 'email' }
   | { name: 'code'; email: string }
+  | { name: 'choose-enroll' }
+  | { name: 'passkey-name' }
   | { name: 'enroll'; secret: string; uri: string }
   | { name: 'recovery-codes'; codes: string[] }
-  | { name: 'totp' }
+  | { name: 'totp'; methods: Methods }
   | { name: 'use-recovery' }
   | { name: 'app'; me: Me };
 
@@ -184,7 +196,78 @@ export function TaskList(props: {
   );
 }
 
-function Tasks({ api, me, onLogout }: { api: ConsoleApi; me: Me; onLogout: () => void }) {
+export function Devices(props: {
+  passkeys: Passkey[];
+  busy: boolean;
+  supported: boolean;
+  onAdd: (name: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [name, setName] = useState(
+    suggestDeviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent),
+  );
+  return (
+    <section className="devices" aria-label="Mis dispositivos">
+      <h2>Mis dispositivos</h2>
+      {props.passkeys.length === 0 ? (
+        <p className="muted">Aún no tienes ninguna passkey.</p>
+      ) : (
+        <ul className="task-list">
+          {props.passkeys.map((p) => (
+            <li key={p.id} className="device">
+              <strong>{p.deviceName}</strong>
+              <span className="muted">
+                {p.backedUp ? 'Sincronizada' : 'Solo en este dispositivo'} · último uso:{' '}
+                {p.lastUsedAt ? new Date(p.lastUsedAt).toLocaleDateString('es-CO') : 'nunca'}
+              </span>
+              <button
+                className="button button-secondary"
+                disabled={props.busy}
+                onClick={() => props.onRemove(p.id)}
+              >
+                Quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {props.supported ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            props.onAdd(name.trim());
+          }}
+        >
+          <label className="field">
+            <span>Nombre del nuevo dispositivo</span>
+            <input value={name} maxLength={60} required onChange={(e) => setName(e.target.value)} />
+          </label>
+          <button className="button" type="submit" disabled={props.busy}>
+            Agregar passkey
+          </button>
+        </form>
+      ) : (
+        <p className="muted">Este navegador no admite passkeys.</p>
+      )}
+    </section>
+  );
+}
+
+function Tasks({
+  api,
+  me,
+  onLogout,
+  onRefreshMe,
+  onRecoveryCodes,
+}: {
+  api: ConsoleApi;
+  me: Me;
+  onLogout: () => void;
+  onRefreshMe: () => Promise<void>;
+  onRecoveryCodes: (codes: string[]) => void;
+}) {
+  const [showDevices, setShowDevices] = useState(false);
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -230,6 +313,47 @@ function Tasks({ api, me, onLogout }: { api: ConsoleApi; me: Me; onLogout: () =>
     }
   };
 
+  const loadPasskeys = useCallback(async () => {
+    try {
+      setPasskeys((await api.listPasskeys()).passkeys);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  }, [api]);
+
+  useEffect(() => {
+    if (showDevices) void loadPasskeys();
+  }, [showDevices, loadPasskeys]);
+
+  const addPasskey = async (deviceName: string) => {
+    setBusy(true);
+    try {
+      const { challengeId, options } = await api.passkeyRegisterOptions();
+      const response = await startRegistration({ optionsJSON: options });
+      const { recoveryCodes } = await api.passkeyRegisterVerify(challengeId, deviceName, response);
+      await Promise.all([loadPasskeys(), onRefreshMe()]);
+      setError(null);
+      if (recoveryCodes) onRecoveryCodes(recoveryCodes);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removePasskey = async (id: string) => {
+    setBusy(true);
+    try {
+      await api.deletePasskey(id);
+      await Promise.all([loadPasskeys(), onRefreshMe()]);
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <header className="console-header">
@@ -237,10 +361,27 @@ function Tasks({ api, me, onLogout }: { api: ConsoleApi; me: Me; onLogout: () =>
         <span className="muted">
           {me.name} · {me.role === 'admin' ? 'Administrador' : 'Operación'}
         </span>
+        <button className="button button-secondary" onClick={() => setShowDevices((open) => !open)}>
+          Mis dispositivos
+        </button>
         <button className="button button-secondary" onClick={onLogout}>
           Salir
         </button>
       </header>
+      {me.role === 'admin' && !me.hasPasskey && (
+        <p className="notice notice-warning" role="status">
+          Para administrar personas necesitas registrar una passkey. Hazlo en «Mis dispositivos».
+        </p>
+      )}
+      {showDevices && (
+        <Devices
+          passkeys={passkeys}
+          busy={busy}
+          supported={passkeysSupported()}
+          onAdd={(name) => void addPasskey(name)}
+          onRemove={(id) => void removePasskey(id)}
+        />
+      )}
       <label className="check">
         <input
           type="checkbox"
@@ -297,6 +438,25 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
   const enterApp = () => api.me().then((me) => setStep({ name: 'app', me }));
   const common = { error, busy };
 
+  /** One gesture with a passkey: no email, no code. */
+  const loginWithPasskey = () =>
+    run(async () => {
+      const { challengeId, options } = await api.passkeyLoginOptions();
+      const response = await startAuthentication({ optionsJSON: options });
+      await api.passkeyLoginVerify(challengeId, response);
+      await enterApp();
+    });
+
+  /** Registers this device. On the first enrollment it also finishes the login. */
+  const registerPasskey = (deviceName: string) =>
+    run(async () => {
+      const { challengeId, options } = await api.passkeyRegisterOptions();
+      const response = await startRegistration({ optionsJSON: options });
+      const { recoveryCodes } = await api.passkeyRegisterVerify(challengeId, deviceName, response);
+      if (recoveryCodes) return setStep({ name: 'recovery-codes', codes: recoveryCodes });
+      await enterApp();
+    });
+
   switch (step.name) {
     case 'loading':
       return <p className="muted">Cargando…</p>;
@@ -311,6 +471,20 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           inputMode="email"
           autoComplete="email"
           button="Enviar código"
+          extra={
+            passkeysSupported() ? (
+              <p>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  disabled={busy}
+                  onClick={() => void loginWithPasskey()}
+                >
+                  Entrar con passkey
+                </button>
+              </p>
+            ) : undefined
+          }
           onSubmit={(email) =>
             void run(async () => {
               await api.requestCode(email);
@@ -332,12 +506,69 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           button="Continuar"
           onSubmit={(code) =>
             void run(async () => {
-              const { next } = await api.verifyCode(step.email, code);
-              if (next === 'totp') return setStep({ name: 'totp' });
-              const enrollment = await api.startEnrollment();
-              setStep({ name: 'enroll', secret: enrollment.secret, uri: enrollment.otpauthUri });
+              const { next, methods } = await api.verifyCode(step.email, code);
+              if (next === 'second_factor') return setStep({ name: 'totp', methods });
+              setStep({ name: 'choose-enroll' });
             })
           }
+        />
+      );
+    case 'choose-enroll':
+      return (
+        <section>
+          <h1>Protege tu cuenta</h1>
+          <p>Elige cómo quieres confirmar que eres tú cada vez que entres.</p>
+          {error && (
+            <p className="notice notice-error" role="alert">
+              {error}
+            </p>
+          )}
+          {passkeysSupported() && (
+            <p>
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() => setStep({ name: 'passkey-name' })}
+              >
+                Usar una passkey (recomendado)
+              </button>
+              <br />
+              <span className="muted">
+                Huella, rostro o llave física. No hay códigos que escribir y no se puede robar con
+                una página falsa.
+              </span>
+            </p>
+          )}
+          <p>
+            <button
+              className="button button-secondary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const enrollment = await api.startEnrollment();
+                  setStep({
+                    name: 'enroll',
+                    secret: enrollment.secret,
+                    uri: enrollment.otpauthUri,
+                  });
+                })
+              }
+            >
+              Usar una app de autenticación
+            </button>
+          </p>
+        </section>
+      );
+    case 'passkey-name':
+      return (
+        <StepForm
+          {...common}
+          title="Registra tu passkey"
+          intro="Ponle un nombre para reconocer este dispositivo. Después tu navegador te pedirá la huella, el rostro o el PIN."
+          label="Nombre del dispositivo"
+          maxLength={60}
+          button="Continuar"
+          onSubmit={(name) => void registerPasskey(name)}
         />
       );
     case 'enroll':
@@ -386,7 +617,41 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           </button>
         </section>
       );
-    case 'totp':
+    case 'totp': {
+      const passkeyButton =
+        step.methods.passkey && passkeysSupported() ? (
+          <p>
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void loginWithPasskey()}
+            >
+              Confirmar con mi passkey
+            </button>
+          </p>
+        ) : null;
+      const recoveryLink = (
+        <p>
+          <button type="button" className="link" onClick={() => setStep({ name: 'use-recovery' })}>
+            Perdí mi teléfono o mi dispositivo
+          </button>
+        </p>
+      );
+      if (!step.methods.totp) {
+        return (
+          <section>
+            <h1>Confirma que eres tú</h1>
+            {error && (
+              <p className="notice notice-error" role="alert">
+                {error}
+              </p>
+            )}
+            {passkeyButton ?? <p className="muted">Este navegador no admite passkeys.</p>}
+            {recoveryLink}
+          </section>
+        );
+      }
       return (
         <StepForm
           {...common}
@@ -397,15 +662,10 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           maxLength={6}
           button="Entrar"
           extra={
-            <p>
-              <button
-                type="button"
-                className="link"
-                onClick={() => setStep({ name: 'use-recovery' })}
-              >
-                Perdí mi teléfono
-              </button>
-            </p>
+            <>
+              {passkeyButton}
+              {recoveryLink}
+            </>
           }
           onSubmit={(code) =>
             void run(async () => {
@@ -415,12 +675,13 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           }
         />
       );
+    }
     case 'use-recovery':
       return (
         <StepForm
           {...common}
           title="Código de recuperación"
-          intro="Escribe uno de los códigos que guardaste al activar tu app."
+          intro="Escribe uno de los códigos de recuperación que guardaste al activar tu protección."
           label="Código de recuperación"
           autoComplete="off"
           maxLength={16}
@@ -439,6 +700,8 @@ export function Console({ apiBaseUrl }: { apiBaseUrl: string }) {
           api={api}
           me={step.me}
           onLogout={() => void api.logout().finally(() => setStep({ name: 'email' }))}
+          onRefreshMe={() => api.me().then((me) => setStep({ name: 'app', me }))}
+          onRecoveryCodes={(codes) => setStep({ name: 'recovery-codes', codes })}
         />
       );
   }

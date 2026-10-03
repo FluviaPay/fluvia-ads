@@ -12,6 +12,7 @@ export type AuthConfig = {
   emailFrom: string;
   resendApiKey: string | undefined;
   issuer: string;
+  webauthn: { rpId: string; rpName: string; origin: string };
 };
 
 export const AUTH_LIMITS = {
@@ -25,6 +26,7 @@ export const AUTH_LIMITS = {
   absoluteTimeoutHours: 12,
   /** The half-logged-in session (email verified, TOTP pending) is short. */
   pendingMfaMinutes: 15,
+  challengeMinutes: 5,
   ipLoginPerMinute: 10,
   ipVerifyPerMinute: 10,
 } as const;
@@ -48,13 +50,21 @@ export function resolveAuthConfig(env: Bindings): AuthConfig {
   if (missing.length > 0 || !secret || !key || !web || !from) {
     throw new NotConfiguredError(missing);
   }
+  const origin = new URL(web).origin;
+  const hostname = new URL(web).hostname;
+  const rpId = blank(env.WEBAUTHN_RP_ID) ?? hostname;
+  // The RP ID must be the web host or a parent domain of it, or browsers refuse the passkey.
+  if (hostname !== rpId && !hostname.endsWith(`.${rpId}`)) {
+    throw new NotConfiguredError(['WEBAUTHN_RP_ID']);
+  }
   return {
     authSecret: secret,
     tokenKey: key,
-    webOrigin: new URL(web).origin,
+    webOrigin: origin,
     secureCookies: web.startsWith('https://'),
     emailFrom: from,
     resendApiKey: resend,
     issuer: 'Fluvia Ads',
+    webauthn: { rpId, rpName: 'Fluvia Ads', origin },
   };
 }

@@ -325,3 +325,17 @@ th[scope='row'] code {
   display: block;
   margin: 1rem 0;
 }
+
+.device {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 0.5rem;
+}
+.notice-warning {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+}

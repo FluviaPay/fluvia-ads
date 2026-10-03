@@ -129,3 +129,12 @@ it('keeps staff authentication tables apart from the 12 business tables', () => 
   expect(names).not.toContain('code');
   expect(names).not.toContain('totp_secret');
 });
+
+it('stores passkeys as public keys only, with a unique credential id and a counter', () => {
+  expect(getTableConfig(s.staffPasskeys).name).toBe('staff_passkeys');
+  expect(getTableConfig(s.webauthnChallenges).name).toBe('webauthn_challenges');
+  const names = columns(s.staffPasskeys).map((c) => c.name);
+  expect(names).toEqual(expect.arrayContaining(['credential_id', 'public_key', 'counter']));
+  expect(names.some((n) => /private|secret/.test(n))).toBe(false);
+  expect(col(s.staffPasskeys, 'credential_id')?.isUnique).toBe(true);
+});

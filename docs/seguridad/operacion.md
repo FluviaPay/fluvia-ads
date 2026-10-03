@@ -12,6 +12,10 @@ La cookie de sesión es `SameSite=Lax` y va a la API. El navegador solo la enví
 
 Variables por ambiente en `apps/api/wrangler.toml`: `WEB_BASE_URL=https://app.<tudominio>`, `API_BASE_URL=https://api.<tudominio>`, `EMAIL_FROM`. En el build de la web, `VITE_API_BASE_URL=https://api.<tudominio>` (de él sale la política CSP de `connect-src`).
 
+### Passkeys y el dominio
+
+Las passkeys quedan atadas al dominio (`WEBAUTHN_RP_ID`). Por defecto es el host de `WEB_BASE_URL`, es decir `app.fluvia.com` en producción. **No lo cambies después de que alguien registre una passkey**: dejarían de funcionar y habría que registrarlas de nuevo (con los códigos de recuperación o un restablecimiento). Para staging usa su propio subdominio (por ejemplo `app-staging.fluvia.com`); no reutilices el de producción.
+
 ## 2. Correo de envío (Resend)
 
 1. Crea la cuenta y agrega tu dominio de envío.
@@ -38,14 +42,14 @@ insert into staff_users (email, name, role)
 values ('correo@dominio.com', 'Nombre Apellido', 'admin');
 ```
 
-Luego esa persona entra en `/console`, recibe el código por correo y activa su app de autenticación. Guarda los 10 códigos de recuperación en un gestor de contraseñas. Las demás personas se invitan desde la consola con rol `operator` o `admin`.
+Luego esa persona entra en `/console`, recibe el código por correo y elige cómo protegerse: **passkey** (recomendado) o app de autenticación. Guarda los 10 códigos de recuperación en un gestor de contraseñas. **Los administradores deben registrar una passkey** (botón «Mis dispositivos») antes de poder crear o modificar personas; mientras no la tengan, la consola les responde 403 en esa sección. Conviene registrar al menos dos dispositivos (por ejemplo el computador y el teléfono, o una llave física de respaldo). Las demás personas se invitan desde la consola con rol `operator` o `admin`.
 
 ## 5. Altas, bajas y cambios de personas
 
 - **Alta:** un administrador crea a la persona (correo y rol). La primera vez que entre, activa su TOTP.
-- **Baja o pérdida del teléfono:** un administrador usa "deshabilitar" (cierra sus sesiones al instante) o "restablecer TOTP" (cierra sus sesiones y le obliga a activar otra vez).
+- **Baja o pérdida de los dispositivos:** un administrador usa "deshabilitar" (cierra sus sesiones al instante) o "restablecer factores" (`POST /console/staff/:id/reset-factors`: borra TOTP, passkeys y códigos de recuperación, cierra sus sesiones y le obliga a registrarlos otra vez).
 - Quien salga del equipo se deshabilita **el mismo día**; no se borra, para conservar la auditoría.
-- Si el que pierde el teléfono es el **único administrador** y no tiene códigos de recuperación, se restablece por SQL: `update staff_users set totp_secret_enc=null, totp_enrolled_at=null, totp_last_step=null, recovery_code_hashes='[]' where email='…';`
+- Si el que pierde el teléfono es el **único administrador** y no tiene códigos de recuperación, se restablece por SQL: `delete from staff_passkeys where staff_user_id = (select id from staff_users where email='…'); update staff_users set totp_secret_enc=null, totp_enrolled_at=null, totp_last_step=null, recovery_code_hashes='[]' where email='…';`
 
 ## 6. Rotación de secretos
 
@@ -89,7 +93,8 @@ Procedimiento: generar el valor nuevo → `wrangler secret put` en staging → p
 
 - Muchos `auth.login_code_failed` seguidos: alguien está probando códigos.
 - `auth.recovery_code_used`: confirmar con la persona que fue ella.
-- `staff.created`, `staff.disabled`, `staff.totp_reset`: deben coincidir con lo que pidió un administrador.
+- `auth.passkey_login_failed` repetidos, sobre todo con `reason: counter` (posible clonación) o `verification` (intento desde un sitio falso).
+- `staff.created`, `staff.disabled`, `staff.factors_reset`: deben coincidir con lo que pidió un administrador.
 
 ```sql
 select created_at, action, actor_id, entity_id
